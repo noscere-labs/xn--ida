@@ -65,7 +65,7 @@ export default function Home() {
         />
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <BEEFParser network={network} onNetworkChange={setNetwork} />
+          <BEEFParser network={network} />
         </main>
 
         <Footer />
