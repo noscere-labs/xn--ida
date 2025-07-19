@@ -58,10 +58,9 @@ interface ParsedBEEF {
 
 interface BEEFParserProps {
   network: Network;
-  onNetworkChange: (network: Network) => void;
 }
 
-export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps) {
+export default function BEEFParser({ network }: BEEFParserProps) {
   const [beefData, setBeefData] = useState<string>('');
   const [parsedBEEF, setParsedBEEF] = useState<ParsedBEEF | null>(null);
   const [error, setError] = useState<string>('');
@@ -166,18 +165,6 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
     }
   };
 
-  const handleNetworkChange = (newNetwork: Network) => {
-    onNetworkChange(newNetwork);
-    whatsOnChainService.setNetwork(newNetwork);
-    // Reset validation states when network changes
-    if (parsedBEEF) {
-      const updatedBumps = parsedBEEF.bumps.map(bump => ({
-        ...bump,
-        validation: undefined
-      }));
-      setParsedBEEF({ ...parsedBEEF, bumps: updatedBumps });
-    }
-  };
 
   // Reset to expanded state when new data is loaded
   useEffect(() => {
