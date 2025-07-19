@@ -330,11 +330,10 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
   const renderTree = () => {
     if (!tree) return null
 
-    const svgWidth = 1200
-    const svgHeight = 800
     const nodeWidth = 180
     const nodeHeight = 80
     const levelHeight = 120
+    const minNodeSpacing = 20 // Minimum space between nodes
 
     const getAllNodes = (node: TreeNode): TreeNode[] => {
       const nodes = [node]
@@ -349,13 +348,24 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     const nodesByLevel = Array.from({ length: maxLevel + 1 }, () => [] as TreeNode[])
     allNodes.forEach(node => nodesByLevel[node.level].push(node))
 
+    // Calculate dynamic width based on the widest level (leaf nodes)
+    const leafNodes = nodesByLevel[0] // Leaf nodes are at level 0
+    const maxNodesInLevel = Math.max(...nodesByLevel.map(level => level.length))
+    const calculatedWidth = Math.max(
+      1200, // Minimum width
+      maxNodesInLevel * (nodeWidth + minNodeSpacing) + 100 // Padding on sides
+    )
+    
+    const svgWidth = calculatedWidth
+    const svgHeight = Math.max(800, maxLevel * levelHeight + nodeHeight + 200) // Dynamic height too
+
     // Center the tree vertically by calculating total height needed
     const totalTreeHeight = maxLevel * levelHeight + nodeHeight
     const startY = (svgHeight - totalTreeHeight) / 2 + nodeHeight / 2
     
     return (
-      <div className="overflow-auto">
-        <svg width={svgWidth} height={svgHeight} className="border border-gray-700 rounded-lg bg-gray-900">
+      <div className="overflow-auto border border-gray-700 rounded-lg bg-gray-900" style={{ maxHeight: '80vh' }}>
+        <svg width={svgWidth} height={svgHeight} className="bg-gray-900">
           {/* Render connections first (behind nodes) */}
           {nodesByLevel.map((levelNodes, level) => {
             const y = startY + (maxLevel - level) * levelHeight
