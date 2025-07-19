@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { whatsOnChainService, Network } from '../services/whatsonchain'
 
 interface TreeNode {
   id: string
@@ -44,12 +45,24 @@ const SAMPLE_DATA_SETS = {
   }
 }
 
-export default function MerkleTreeVisualizer() {
+interface MerkleTreeVisualizerProps {
+  network?: Network;
+}
+
+export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVisualizerProps) {
   const [inputData, setInputData] = useState<string>('')
   const [tree, setTree] = useState<TreeNode | null>(null)
   const [selectedLeaf, setSelectedLeaf] = useState<string | null>(null)
   const [merklePath, setMerklePath] = useState<MerklePathStep[]>([])
   const [activeTab, setActiveTab] = useState<'input' | 'visualization'>('input')
+  const [blockInput, setBlockInput] = useState<string>('')
+  const [loadingBlock, setLoadingBlock] = useState<boolean>(false)
+  const [blockError, setBlockError] = useState<string>('')
+
+  // Sync network with WhatsOnChain service
+  useEffect(() => {
+    whatsOnChainService.setNetwork(network);
+  }, [network]);
 
   const hashData = useCallback(async (data: string): Promise<string> => {
     const encoder = new TextEncoder()
@@ -170,6 +183,45 @@ export default function MerkleTreeVisualizer() {
     setSelectedLeaf(null)
     setMerklePath([])
     setActiveTab('visualization')
+  }
+
+  const loadBlockData = async () => {
+    if (!blockInput.trim()) return
+    
+    setLoadingBlock(true)
+    setBlockError('')
+    
+    try {
+      let blockData
+      
+      // Check if input is a number (block height) or hash
+      if (/^\d+$/.test(blockInput.trim())) {
+        const height = parseInt(blockInput.trim())
+        blockData = await whatsOnChainService.getBlockByHeight(height)
+      } else {
+        // Assume it's a block hash
+        blockData = await whatsOnChainService.getBlockByHash(blockInput.trim())
+      }
+      
+      if (!blockData.tx || blockData.tx.length === 0) {
+        throw new Error('No transactions found in this block')
+      }
+      
+      // Set the input data to the transaction IDs
+      setInputData(blockData.tx.join('\n'))
+      
+      // Build merkle tree from transaction IDs
+      const merkleTree = await buildMerkleTree(blockData.tx)
+      setTree(merkleTree)
+      setSelectedLeaf(null)
+      setMerklePath([])
+      setActiveTab('visualization')
+      
+    } catch (error) {
+      setBlockError(error instanceof Error ? error.message : 'Failed to load block data')
+    } finally {
+      setLoadingBlock(false)
+    }
   }
 
   const handleLeafClick = (leafId: string) => {
@@ -406,7 +458,7 @@ export default function MerkleTreeVisualizer() {
         </div>
 
         {activeTab === 'input' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
               <label className="block text-white text-sm font-medium mb-2">
                 Enter data (one item per line):
@@ -438,6 +490,92 @@ export default function MerkleTreeVisualizer() {
             >
               Build Merkle Tree
             </button>
+
+            {/* Block Data Section */}
+            <div className="border-t border-gray-700 pt-6">
+              <h3 className="text-lg font-semibold text-white mb-4">Load Block Data from WhatsOnChain</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-white text-sm font-medium mb-2">
+                    Block Height or Hash:
+                  </label>
+                  <input
+                    type="text"
+                    value={blockInput}
+                    onChange={(e) => setBlockInput(e.target.value)}
+                    placeholder="Enter block height (e.g., 575191) or block hash"
+                    className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white"
+                  />
+                </div>
+                
+                {blockError && (
+                  <div className="p-3 bg-red-900/20 border border-red-700 rounded-lg text-red-400 text-sm">
+                    {blockError}
+                  </div>
+                )}
+                
+                <button
+                  onClick={loadBlockData}
+                  disabled={!blockInput.trim() || loadingBlock}
+                  className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg"
+                >
+                  {loadingBlock && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  )}
+                  Load Block Transactions
+                </button>
+                
+                <div className="text-sm text-gray-400 space-y-2">
+                  <p>
+                    This will fetch all transaction IDs from the specified block and create a Merkle tree visualization.
+                    You can enter either a block height (number) or a block hash.
+                  </p>
+                  <p>
+                    <span className="font-medium">Current network:</span> {network === 'main' ? 'Mainnet' : 'Testnet'}
+                  </p>
+                  <p>
+                    <span className="font-medium">Sample block heights:</span>{' '}
+                    {network === 'main' ? (
+                      <span>
+                        <button 
+                          onClick={() => setBlockInput('575191')}
+                          className="text-blue-400 hover:text-blue-300 underline mx-1"
+                        >
+                          575191
+                        </button>
+                        <button 
+                          onClick={() => setBlockInput('700000')}
+                          className="text-blue-400 hover:text-blue-300 underline mx-1"
+                        >
+                          700000
+                        </button>
+                        <button 
+                          onClick={() => setBlockInput('800000')}
+                          className="text-blue-400 hover:text-blue-300 underline mx-1"
+                        >
+                          800000
+                        </button>
+                      </span>
+                    ) : (
+                      <span>
+                        <button 
+                          onClick={() => setBlockInput('1400000')}
+                          className="text-blue-400 hover:text-blue-300 underline mx-1"
+                        >
+                          1400000
+                        </button>
+                        <button 
+                          onClick={() => setBlockInput('1500000')}
+                          className="text-blue-400 hover:text-blue-300 underline mx-1"
+                        >
+                          1500000
+                        </button>
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
