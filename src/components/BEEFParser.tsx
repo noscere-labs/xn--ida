@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
 import { Beef } from '@bsv/sdk';
+import { useCallback, useState } from 'react';
+import { whatsOnChainService, Network } from '../services/whatsonchain';
 
 interface BumpData {
   blockHeight: number;
@@ -13,6 +14,15 @@ interface BumpData {
     isDuplicate: boolean;
     isClientTxid: boolean;
   }[]>;
+  validation?: {
+    isValidating: boolean;
+    isValid?: boolean;
+    blockHash?: string;
+    merkleRoot?: string;
+    error?: string;
+    validTransactions: string[];
+    invalidTransactions: string[];
+  };
 }
 
 interface ParsedTransaction {
@@ -52,6 +62,8 @@ export default function BEEFParser() {
   const [error, setError] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'overview' | 'bumps' | 'transactions'>('overview');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['overview']));
+  const [network, setNetwork] = useState<Network>('main');
+  const [validatingBumps, setValidatingBumps] = useState<Set<number>>(new Set());
 
   const toggleSection = (section: string) => {
     const newExpanded = new Set(expandedSections);
@@ -67,7 +79,7 @@ export default function BEEFParser() {
     try {
       const cleanHex = hexData.replace(/\s/g, '');
       const beef = Beef.fromString(cleanHex, 'hex');
-      
+
       const bumps: BumpData[] = beef.bumps.map(bump => ({
         blockHeight: bump.blockHeight,
         treeHeight: bump.path.length,
@@ -143,6 +155,92 @@ export default function BEEFParser() {
     }
   };
 
+  const handleNetworkChange = (newNetwork: Network) => {
+    setNetwork(newNetwork);
+    whatsOnChainService.setNetwork(newNetwork);
+    // Reset validation states when network changes
+    if (parsedBEEF) {
+      const updatedBumps = parsedBEEF.bumps.map(bump => ({
+        ...bump,
+        validation: undefined
+      }));
+      setParsedBEEF({ ...parsedBEEF, bumps: updatedBumps });
+    }
+  };
+
+  const validateBump = async (bumpIndex: number) => {
+    if (!parsedBEEF) return;
+
+    const bump = parsedBEEF.bumps[bumpIndex];
+    if (!bump || validatingBumps.has(bumpIndex)) return;
+
+    // Set validating state
+    setValidatingBumps(prev => new Set([...prev, bumpIndex]));
+    
+    // Update bump validation state to show loading
+    const updatedBumps = [...parsedBEEF.bumps];
+    updatedBumps[bumpIndex] = {
+      ...bump,
+      validation: {
+        isValidating: true,
+        validTransactions: [],
+        invalidTransactions: []
+      }
+    };
+    setParsedBEEF({ ...parsedBEEF, bumps: updatedBumps });
+
+    try {
+      // Get transaction IDs that have this bump
+      const txidsWithBump = parsedBEEF.transactions
+        .filter(tx => tx.bumpIndex === bumpIndex)
+        .map(tx => tx.txid);
+
+      // Validate the bump data against the blockchain
+      const validationResult = await whatsOnChainService.validateBumpData(
+        bump.blockHeight,
+        txidsWithBump
+      );
+
+      // Update the bump with validation results
+      updatedBumps[bumpIndex] = {
+        ...bump,
+        validation: {
+          isValidating: false,
+          isValid: validationResult.isValid,
+          blockHash: validationResult.blockHash,
+          merkleRoot: validationResult.merkleRoot,
+          error: validationResult.error,
+          validTransactions: validationResult.validTransactions,
+          invalidTransactions: validationResult.invalidTransactions
+        }
+      };
+
+      setParsedBEEF({ ...parsedBEEF, bumps: updatedBumps });
+
+    } catch (error) {
+      // Handle validation error
+      updatedBumps[bumpIndex] = {
+        ...bump,
+        validation: {
+          isValidating: false,
+          isValid: false,
+          error: error instanceof Error ? error.message : 'Unknown validation error',
+          validTransactions: [],
+          invalidTransactions: parsedBEEF.transactions
+            .filter(tx => tx.bumpIndex === bumpIndex)
+            .map(tx => tx.txid)
+        }
+      };
+      setParsedBEEF({ ...parsedBEEF, bumps: updatedBumps });
+    } finally {
+      setValidatingBumps(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(bumpIndex);
+        return newSet;
+      });
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
@@ -156,19 +254,45 @@ export default function BEEFParser() {
       <div className="text-center">
         <h1 className="text-4xl sm:text-5xl font-bold mb-4">
           <span className="bg-gradient-to-r from-[#0a84ff] to-[#a855f7] bg-clip-text text-transparent">
-            BEEF Transaction
-          </span>
-          <br />
-          <span className="bg-gradient-to-r from-[#0a84ff] to-[#a855f7] bg-clip-text text-transparent">
-            Parser
+            BEEF Parser
           </span>
         </h1>
         <p className="text-xl text-[#d1d5db] max-w-2xl mx-auto">
-          Parse and analyze BEEF (Bitcoin Extended Format) transactions
+          Parse and analyze BEEF (Background Evaluation Extended Format) transactions
         </p>
       </div>
 
       <div className="bg-[#0f172a] rounded-lg p-6 mb-6">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-[#d1d5db] mb-2">
+              Network
+            </label>
+            <div className="flex bg-gray-800 rounded-lg p-1">
+              <button
+                onClick={() => handleNetworkChange('main')}
+                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  network === 'main'
+                    ? 'bg-[#0a84ff] text-white'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Mainnet
+              </button>
+              <button
+                onClick={() => handleNetworkChange('test')}
+                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  network === 'test'
+                    ? 'bg-[#0a84ff] text-white'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Testnet
+              </button>
+            </div>
+          </div>
+        </div>
+        
         <div className="mb-6">
           <label className="block text-sm font-medium text-[#d1d5db] mb-2">
             BEEF Transaction Hex Data
@@ -218,11 +342,10 @@ export default function BEEFParser() {
                 <button
                   key={id}
                   onClick={() => setActiveTab(id as typeof activeTab)}
-                  className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
-                    activeTab === id
-                      ? 'border-b-2 border-[#0a84ff] text-[#0a84ff] bg-[#0a84ff]/10'
-                      : 'text-[#d1d5db] hover:text-white hover:bg-gray-800/50'
-                  }`}
+                  className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${activeTab === id
+                    ? 'border-b-2 border-[#0a84ff] text-[#0a84ff] bg-[#0a84ff]/10'
+                    : 'text-[#d1d5db] hover:text-white hover:bg-gray-800/50'
+                    }`}
                 >
                   {label}
                 </button>
@@ -247,13 +370,15 @@ export default function BEEFParser() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="bg-green-500/10 border border-green-500/20 p-4 rounded-lg">
                     <div className="font-medium mb-2">BUMP Proofs</div>
                     <div className="text-2xl font-bold text-green-400">{parsedBEEF.bumps.length}</div>
-                    <div className="text-sm text-[#d1d5db]">Merkle proofs included</div>
+                    <div className="text-sm text-[#d1d5db]">
+                      {parsedBEEF.bumps.filter(b => b.validation?.isValid).length} validated, {parsedBEEF.bumps.length} total
+                    </div>
                   </div>
-                  
+
                   <div className="bg-purple-500/10 border border-purple-500/20 p-4 rounded-lg">
                     <div className="font-medium mb-2">Transactions</div>
                     <div className="text-2xl font-bold text-purple-400">{parsedBEEF.transactions.length}</div>
@@ -296,17 +421,51 @@ export default function BEEFParser() {
                         onClick={() => toggleSection(`bump-${index}`)}
                         className="w-full flex items-center justify-between p-4 bg-gray-800/50 hover:bg-gray-700/50 transition-colors"
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">BUMP {index + 1}</span>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            {bump.validation?.isValidating ? (
+                              <div className="w-4 h-4 border-2 border-[#0a84ff] border-t-transparent rounded-full animate-spin" />
+                            ) : bump.validation?.isValid === true ? (
+                              <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs">✓</span>
+                              </div>
+                            ) : bump.validation?.isValid === false ? (
+                              <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs">✗</span>
+                              </div>
+                            ) : (
+                              <div className="w-4 h-4 bg-gray-500 rounded-full" />
+                            )}
+                            <span className="font-medium">BUMP {index + 1}</span>
+                          </div>
                           <span className="text-sm text-[#d1d5db]">
                             Block: {bump.blockHeight}, Tree Height: {bump.treeHeight}
                           </span>
+                          {bump.validation?.blockHash && (
+                            <span className="text-xs text-green-400">
+                              Hash: {bump.validation.blockHash.substring(0, 12)}...
+                            </span>
+                          )}
                         </div>
-                        <div className="text-[#0a84ff]">
-                          {expandedSections.has(`bump-${index}`) ? '▼' : '▶'}
+                        <div className="flex items-center gap-2">
+                          {!bump.validation && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                validateBump(index);
+                              }}
+                              disabled={validatingBumps.has(index)}
+                              className="px-3 py-1 bg-[#0a84ff] text-white text-sm rounded hover:bg-[#3ea6ff] disabled:opacity-50 transition-colors"
+                            >
+                              Validate
+                            </button>
+                          )}
+                          <div className="text-[#0a84ff]">
+                            {expandedSections.has(`bump-${index}`) ? '▼' : '▶'}
+                          </div>
                         </div>
                       </button>
-                      
+
                       {expandedSections.has(`bump-${index}`) && (
                         <div className="p-4 space-y-4">
                           <div className="grid grid-cols-2 gap-4 text-sm">
@@ -317,7 +476,58 @@ export default function BEEFParser() {
                               <span className="font-medium">Tree Height:</span> {bump.treeHeight}
                             </div>
                           </div>
-                          
+
+                          {bump.validation && (
+                            <div className="border border-gray-600 rounded p-3 space-y-2">
+                              <h5 className="font-medium text-sm">Validation Results</h5>
+                              
+                              {bump.validation.isValidating ? (
+                                <div className="flex items-center gap-2 text-sm text-[#0a84ff]">
+                                  <div className="w-4 h-4 border-2 border-[#0a84ff] border-t-transparent rounded-full animate-spin" />
+                                  Validating against {network} network...
+                                </div>
+                              ) : (
+                                <>
+                                  <div className={`text-sm font-medium ${
+                                    bump.validation.isValid ? 'text-green-400' : 'text-red-400'
+                                  }`}>
+                                    {bump.validation.isValid ? '✓ Valid BUMP proof' : '✗ Invalid BUMP proof'}
+                                  </div>
+                                  
+                                  {bump.validation.blockHash && (
+                                    <div className="text-xs text-gray-400">
+                                      <span className="font-medium">Block Hash:</span> {bump.validation.blockHash}
+                                    </div>
+                                  )}
+                                  
+                                  {bump.validation.merkleRoot && (
+                                    <div className="text-xs text-gray-400">
+                                      <span className="font-medium">Merkle Root:</span> {bump.validation.merkleRoot}
+                                    </div>
+                                  )}
+                                  
+                                  {bump.validation.validTransactions.length > 0 && (
+                                    <div className="text-xs text-green-400">
+                                      <span className="font-medium">Valid Transactions:</span> {bump.validation.validTransactions.length}
+                                    </div>
+                                  )}
+                                  
+                                  {bump.validation.invalidTransactions.length > 0 && (
+                                    <div className="text-xs text-red-400">
+                                      <span className="font-medium">Invalid Transactions:</span> {bump.validation.invalidTransactions.length}
+                                    </div>
+                                  )}
+                                  
+                                  {bump.validation.error && (
+                                    <div className="text-xs text-red-400 bg-red-900/20 p-2 rounded">
+                                      {bump.validation.error}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
+
                           <div>
                             <h4 className="font-medium mb-2">Merkle Path Levels</h4>
                             <div className="space-y-2">
@@ -328,13 +538,12 @@ export default function BEEFParser() {
                                     {level.map((leaf, leafIndex) => (
                                       <div key={leafIndex} className="flex items-center gap-2 text-xs">
                                         <span className="w-12 text-gray-400">#{leaf.offset}</span>
-                                        <span className={`px-2 py-1 rounded text-xs ${
-                                          leaf.isClientTxid ? 'bg-[#0a84ff]/20 text-[#0a84ff]' :
+                                        <span className={`px-2 py-1 rounded text-xs ${leaf.isClientTxid ? 'bg-[#0a84ff]/20 text-[#0a84ff]' :
                                           leaf.isDuplicate ? 'bg-yellow-500/20 text-yellow-400' :
-                                          'bg-gray-700 text-gray-300'
-                                        }`}>
+                                            'bg-gray-700 text-gray-300'
+                                          }`}>
                                           {leaf.isClientTxid ? 'Client TXID' :
-                                           leaf.isDuplicate ? 'Duplicate' : 'Sibling'}
+                                            leaf.isDuplicate ? 'Duplicate' : 'Sibling'}
                                         </span>
                                         {leaf.hash && (
                                           <span className="font-mono text-gray-400 truncate">
@@ -368,8 +577,19 @@ export default function BEEFParser() {
                         <span className="font-medium">Transaction {index + 1}</span>
                         <span className="text-sm text-[#d1d5db] font-mono">{tx.txid.substring(0, 16)}...</span>
                         {tx.hasBump && (
-                          <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">
-                            Has Proof
+                          <span className={`px-2 py-1 text-xs rounded ${
+                            parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === true
+                              ? 'bg-green-500/20 text-green-400'
+                              : parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === false
+                              ? 'bg-red-500/20 text-red-400'
+                              : 'bg-gray-500/20 text-gray-400'
+                          }`}>
+                            {parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === true
+                              ? '✓ Validated Proof'
+                              : parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === false
+                              ? '✗ Invalid Proof'
+                              : 'Has Proof'
+                            }
                           </span>
                         )}
                       </div>
@@ -377,7 +597,7 @@ export default function BEEFParser() {
                         {expandedSections.has(`tx-${index}`) ? '▼' : '▶'}
                       </div>
                     </button>
-                    
+
                     {expandedSections.has(`tx-${index}`) && (
                       <div className="p-4 space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
