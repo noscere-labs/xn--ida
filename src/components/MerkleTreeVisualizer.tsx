@@ -49,7 +49,7 @@ export default function MerkleTreeVisualizer() {
   const [tree, setTree] = useState<TreeNode | null>(null)
   const [selectedLeaf, setSelectedLeaf] = useState<string | null>(null)
   const [merklePath, setMerklePath] = useState<MerklePathStep[]>([])
-  const [activeTab, setActiveTab] = useState<'input' | 'visualization' | 'path'>('input')
+  const [activeTab, setActiveTab] = useState<'input' | 'visualization'>('input')
 
   const hashData = useCallback(async (data: string): Promise<string> => {
     const encoder = new TextEncoder()
@@ -178,7 +178,6 @@ export default function MerkleTreeVisualizer() {
     setSelectedLeaf(leafId)
     const path = findMerklePath(tree, leafId)
     setMerklePath(path)
-    setActiveTab('path')
   }
 
   const copyToClipboard = (text: string) => {
@@ -189,30 +188,18 @@ export default function MerkleTreeVisualizer() {
     const isSelected = selectedLeaf === node.id
     const isInPath = merklePath.some(step => step.hash === node.hash)
     
-    // Calculate text metrics
-    const maxCharsPerLine = Math.floor((nodeWidth - 20) / 6) // Approximate chars that fit
+    // Split hash into 4 lines of 16 characters each
     const hashLines = []
     const fullHash = node.hash
     
-    // Split hash into multiple lines if needed
-    for (let i = 0; i < fullHash.length; i += maxCharsPerLine) {
-      hashLines.push(fullHash.substring(i, i + maxCharsPerLine))
+    // Split hash into 4 lines of 16 characters each
+    for (let i = 0; i < fullHash.length; i += 16) {
+      hashLines.push(fullHash.substring(i, i + 16))
     }
     
     return (
       <g key={node.id}>
-        {/* Clickable area (invisible rectangle covering entire node) */}
-        <rect
-          x={x - nodeWidth / 2}
-          y={y - nodeHeight / 2}
-          width={nodeWidth}
-          height={nodeHeight}
-          fill="transparent"
-          className={node.isLeaf ? 'cursor-pointer' : ''}
-          onClick={node.isLeaf ? () => handleLeafClick(node.id) : undefined}
-        />
-        
-        {/* Visible node background */}
+        {/* Visible node background - make this clickable */}
         <rect
           x={x - nodeWidth / 2}
           y={y - nodeHeight / 2}
@@ -223,7 +210,13 @@ export default function MerkleTreeVisualizer() {
           fill={isSelected ? '#a855f7' : isInPath ? '#0a84ff' : '#374151'}
           stroke={isSelected || isInPath ? '#ffffff' : '#6b7280'}
           strokeWidth={isSelected ? 3 : 1}
-          className={node.isLeaf ? 'hover:fill-blue-600' : ''}
+          className={node.isLeaf ? 'cursor-pointer hover:fill-blue-600' : ''}
+          onClick={node.isLeaf ? (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleLeafClick(node.id);
+          } : undefined}
+          style={node.isLeaf ? { pointerEvents: 'all' } : undefined}
         />
         
         {/* Hash text */}
@@ -262,7 +255,12 @@ export default function MerkleTreeVisualizer() {
           stroke="rgba(255, 255, 255, 0.3)"
           strokeWidth={1}
           className="cursor-pointer hover:fill-white hover:fill-opacity-20"
-          onClick={() => copyToClipboard(node.hash)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            copyToClipboard(node.hash);
+          }}
+          style={{ pointerEvents: 'all' }}
         />
         <text
           x={x + nodeWidth / 2 - 12}
@@ -405,13 +403,6 @@ export default function MerkleTreeVisualizer() {
           >
             Tree Visualization
           </button>
-          <button
-            onClick={() => setActiveTab('path')}
-            className={`px-4 py-2 ${activeTab === 'path' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-400'}`}
-            disabled={merklePath.length === 0}
-          >
-            Merkle Path
-          </button>
         </div>
 
         {activeTab === 'input' && (
@@ -454,12 +445,8 @@ export default function MerkleTreeVisualizer() {
           <div className="space-y-4">
             {tree ? (
               <div className="overflow-auto">
-                <p className="text-gray-300 mb-4">
-                  Click on any leaf node (bottom row) to see its Merkle path proof.
-                </p>
-                {renderTree()}
                 {tree && (
-                  <div className="mt-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                  <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-semibold text-white">Merkle Root Hash</h3>
                       <button
@@ -475,61 +462,58 @@ export default function MerkleTreeVisualizer() {
                     </div>
                   </div>
                 )}
+                <p className="text-gray-300 mb-4">
+                  Click on any leaf node (bottom row) to see its Merkle path proof.
+                </p>
+                {renderTree()}
+                
+                {/* Merkle Path Section */}
+                {merklePath.length > 0 && (
+                  <div className="mt-6 space-y-4">
+                    <h3 className="text-lg font-semibold text-white mb-4">
+                      Merkle Path Proof {selectedLeaf && `for ${selectedLeaf}`}
+                    </h3>
+                    <div className="space-y-3">
+                      {merklePath.map((step, index) => (
+                        <div key={index} className="p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <span className="text-sm text-gray-400 min-w-[60px] font-medium">
+                                Step {index + 1}:
+                              </span>
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                step.isTarget ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'
+                              }`}>
+                                {step.isTarget ? 'Target Hash' : `Sibling Hash (${step.position})`}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => copyToClipboard(step.hash)}
+                              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                              title="Copy hash to clipboard"
+                            >
+                              📋 Copy
+                            </button>
+                          </div>
+                          <div className="mt-3 p-3 bg-gray-900 rounded border">
+                            <span className="font-mono text-sm text-blue-400 break-all leading-relaxed">
+                              {step.hash}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 p-4 bg-gray-800 rounded-lg">
+                      <p className="text-sm text-gray-300">
+                        This path proves that the selected leaf is included in the Merkle tree. 
+                        Each step shows either the target hash or a sibling hash needed for verification.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-gray-400">No tree data. Please go to Input Data tab to create a tree.</p>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'path' && (
-          <div className="space-y-4">
-            {merklePath.length > 0 ? (
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-4">
-                  Merkle Path Proof {selectedLeaf && `for ${selectedLeaf}`}
-                </h3>
-                <div className="space-y-3">
-                  {merklePath.map((step, index) => (
-                    <div key={index} className="p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <span className="text-sm text-gray-400 min-w-[60px] font-medium">
-                            Step {index + 1}:
-                          </span>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            step.isTarget ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'
-                          }`}>
-                            {step.isTarget ? 'Target Hash' : `Sibling Hash (${step.position})`}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => copyToClipboard(step.hash)}
-                          className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
-                          title="Copy hash to clipboard"
-                        >
-                          📋 Copy
-                        </button>
-                      </div>
-                      <div className="mt-3 p-3 bg-gray-900 rounded border">
-                        <span className="font-mono text-sm text-blue-400 break-all leading-relaxed">
-                          {step.hash}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 p-4 bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-300">
-                    This path proves that the selected leaf is included in the Merkle tree. 
-                    Each step shows either the target hash or a sibling hash needed for verification.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <p className="text-gray-400">
-                No path selected. Go to Tree Visualization and click on a leaf node to see its proof path.
-              </p>
             )}
           </div>
         )}
