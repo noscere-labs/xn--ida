@@ -58,6 +58,8 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
   const [blockInput, setBlockInput] = useState<string>('')
   const [loadingBlock, setLoadingBlock] = useState<boolean>(false)
   const [blockError, setBlockError] = useState<string>('')
+  const [showPathOnly, setShowPathOnly] = useState<boolean>(false)
+  const [pathNodes, setPathNodes] = useState<Set<string>>(new Set())
 
   // Sync network with WhatsOnChain service
   useEffect(() => {
@@ -160,6 +162,40 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     return path.reverse()
   }, [])
 
+  const getPathNodes = useCallback((tree: TreeNode, targetLeafId: string): Set<string> => {
+    const pathNodeIds = new Set<string>()
+    
+    const traverse = (node: TreeNode, targetId: string): boolean => {
+      if (node.isLeaf) {
+        if (node.id === targetId) {
+          pathNodeIds.add(node.id) // Add the target leaf
+          return true
+        }
+        return false
+      }
+
+      const foundInLeft = node.left && traverse(node.left, targetId)
+      const foundInRight = node.right && traverse(node.right, targetId)
+
+      if (foundInLeft || foundInRight) {
+        pathNodeIds.add(node.id) // Add this intermediate node
+        
+        // Add sibling nodes needed for merkle proof
+        if (foundInLeft && node.right) {
+          pathNodeIds.add(node.right.id) // Add right sibling
+        } else if (foundInRight && node.left) {
+          pathNodeIds.add(node.left.id) // Add left sibling
+        }
+        return true
+      }
+
+      return false
+    }
+
+    traverse(tree, targetLeafId)
+    return pathNodeIds
+  }, [])
+
   const handleDataInput = async () => {
     const dataItems = inputData
       .split('\n')
@@ -230,6 +266,11 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     setSelectedLeaf(leafId)
     const path = findMerklePath(tree, leafId)
     setMerklePath(path)
+    
+    // Collect nodes involved in the merkle path and enable path-only view
+    const pathNodeIds = getPathNodes(tree, leafId)
+    setPathNodes(pathNodeIds)
+    setShowPathOnly(true)
   }
 
   const copyToClipboard = (text: string) => {
@@ -345,19 +386,29 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     const allNodes = getAllNodes(tree)
     const maxLevel = Math.max(...allNodes.map(n => n.level))
     
+    // Filter nodes based on view mode
+    const filteredNodes = showPathOnly 
+      ? allNodes.filter(node => pathNodes.has(node.id))
+      : allNodes
+    
     const nodesByLevel = Array.from({ length: maxLevel + 1 }, () => [] as TreeNode[])
-    allNodes.forEach(node => nodesByLevel[node.level].push(node))
+    filteredNodes.forEach(node => nodesByLevel[node.level].push(node))
 
-    // Calculate dynamic width based on the widest level (leaf nodes)
-    const leafNodes = nodesByLevel[0] // Leaf nodes are at level 0
+    // Calculate dynamic width based on the widest level
     const maxNodesInLevel = Math.max(...nodesByLevel.map(level => level.length))
+    
+    // In path-only mode, use more generous spacing for better visualization
+    const effectiveNodeWidth = showPathOnly ? nodeWidth + 40 : nodeWidth
+    const effectiveSpacing = showPathOnly ? minNodeSpacing + 40 : minNodeSpacing
+    const minWidth = showPathOnly ? 800 : 1200
+    
     const calculatedWidth = Math.max(
-      1200, // Minimum width
-      maxNodesInLevel * (nodeWidth + minNodeSpacing) + 100 // Padding on sides
+      minWidth,
+      maxNodesInLevel * (effectiveNodeWidth + effectiveSpacing) + 100
     )
     
     const svgWidth = calculatedWidth
-    const svgHeight = Math.max(800, maxLevel * levelHeight + nodeHeight + 200) // Dynamic height too
+    const svgHeight = Math.max(800, maxLevel * levelHeight + nodeHeight + 200)
 
     // Center the tree vertically by calculating total height needed
     const totalTreeHeight = maxLevel * levelHeight + nodeHeight
@@ -376,44 +427,48 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
               const x = 50 + spacing * (index + 1)
               const connections = []
               
-              if (node.left) {
+              if (node.left && (!showPathOnly || pathNodes.has(node.left.id))) {
                 const leftLevel = nodesByLevel[node.left.level]
                 const leftIndex = leftLevel.indexOf(node.left)
-                const leftSpacing = levelWidth / (leftLevel.length + 1)
-                const leftX = 50 + leftSpacing * (leftIndex + 1)
-                const leftY = startY + (maxLevel - node.left.level) * levelHeight
-                
-                connections.push(
-                  <line
-                    key={`${node.id}-left`}
-                    x1={x}
-                    y1={y + nodeHeight / 2}
-                    x2={leftX}
-                    y2={leftY - nodeHeight / 2}
-                    stroke={merklePath.some(step => step.hash === node.hash || step.hash === node.left?.hash) ? '#0a84ff' : '#6b7280'}
-                    strokeWidth={merklePath.some(step => step.hash === node.hash || step.hash === node.left?.hash) ? 2 : 1}
-                  />
-                )
+                if (leftIndex !== -1) {
+                  const leftSpacing = levelWidth / (leftLevel.length + 1)
+                  const leftX = 50 + leftSpacing * (leftIndex + 1)
+                  const leftY = startY + (maxLevel - node.left.level) * levelHeight
+                  
+                  connections.push(
+                    <line
+                      key={`${node.id}-left`}
+                      x1={x}
+                      y1={y + nodeHeight / 2}
+                      x2={leftX}
+                      y2={leftY - nodeHeight / 2}
+                      stroke={merklePath.some(step => step.hash === node.hash || step.hash === node.left?.hash) ? '#0a84ff' : '#6b7280'}
+                      strokeWidth={merklePath.some(step => step.hash === node.hash || step.hash === node.left?.hash) ? 2 : 1}
+                    />
+                  )
+                }
               }
               
-              if (node.right && node.right !== node.left) {
+              if (node.right && node.right !== node.left && (!showPathOnly || pathNodes.has(node.right.id))) {
                 const rightLevel = nodesByLevel[node.right.level]
                 const rightIndex = rightLevel.indexOf(node.right)
-                const rightSpacing = levelWidth / (rightLevel.length + 1)
-                const rightX = 50 + rightSpacing * (rightIndex + 1)
-                const rightY = startY + (maxLevel - node.right.level) * levelHeight
-                
-                connections.push(
-                  <line
-                    key={`${node.id}-right`}
-                    x1={x}
-                    y1={y + nodeHeight / 2}
-                    x2={rightX}
-                    y2={rightY - nodeHeight / 2}
-                    stroke={merklePath.some(step => step.hash === node.hash || step.hash === node.right?.hash) ? '#0a84ff' : '#6b7280'}
-                    strokeWidth={merklePath.some(step => step.hash === node.hash || step.hash === node.right?.hash) ? 2 : 1}
-                  />
-                )
+                if (rightIndex !== -1) {
+                  const rightSpacing = levelWidth / (rightLevel.length + 1)
+                  const rightX = 50 + rightSpacing * (rightIndex + 1)
+                  const rightY = startY + (maxLevel - node.right.level) * levelHeight
+                  
+                  connections.push(
+                    <line
+                      key={`${node.id}-right`}
+                      x1={x}
+                      y1={y + nodeHeight / 2}
+                      x2={rightX}
+                      y2={rightY - nodeHeight / 2}
+                      stroke={merklePath.some(step => step.hash === node.hash || step.hash === node.right?.hash) ? '#0a84ff' : '#6b7280'}
+                      strokeWidth={merklePath.some(step => step.hash === node.hash || step.hash === node.right?.hash) ? 2 : 1}
+                    />
+                  )
+                }
               }
               
               return connections
@@ -597,21 +652,55 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
                   <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-semibold text-white">Merkle Root Hash</h3>
-                      <button
-                        onClick={() => copyToClipboard(tree.hash)}
-                        className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
-                        title="Copy root hash to clipboard"
-                      >
-                        📋 Copy Root
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {selectedLeaf && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setShowPathOnly(!showPathOnly)}
+                              className={`px-3 py-1 text-xs rounded transition-colors ${
+                                showPathOnly 
+                                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                  : 'bg-gray-700 hover:bg-gray-600 text-white'
+                              }`}
+                              title={showPathOnly ? 'Show full tree' : 'Show merkle path only'}
+                            >
+                              {showPathOnly ? '🌳 Full Tree' : '🎯 Path Only'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedLeaf(null)
+                                setMerklePath([])
+                                setShowPathOnly(false)
+                                setPathNodes(new Set())
+                              }}
+                              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                              title="Reset selection"
+                            >
+                              🔄 Reset
+                            </button>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => copyToClipboard(tree.hash)}
+                          className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                          title="Copy root hash to clipboard"
+                        >
+                          📋 Copy Root
+                        </button>
+                      </div>
                     </div>
                     <div className="p-3 bg-gray-900 rounded border">
                       <p className="font-mono text-sm text-blue-400 break-all leading-relaxed">{tree.hash}</p>
                     </div>
+                    {showPathOnly && selectedLeaf && (
+                      <div className="mt-3 p-2 bg-blue-900/20 border border-blue-500/30 rounded text-sm text-blue-300">
+                        🎯 Showing merkle path for selected transaction: {selectedLeaf.replace('leaf-', '')}
+                      </div>
+                    )}
                   </div>
                 )}
                 <p className="text-gray-300 mb-4">
-                  Click on any leaf node (bottom row) to see its Merkle path proof.
+                  Click on any leaf node (bottom row) to see its Merkle path proof and focus view on the relevant nodes.
                 </p>
                 {renderTree()}
                 
