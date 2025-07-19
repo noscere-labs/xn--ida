@@ -1,0 +1,539 @@
+'use client'
+
+import { useState, useCallback } from 'react'
+
+interface TreeNode {
+  id: string
+  hash: string
+  value?: string
+  left?: TreeNode
+  right?: TreeNode
+  level: number
+  position: number
+  isLeaf: boolean
+}
+
+interface MerklePathStep {
+  hash: string
+  position: 'left' | 'right'
+  isTarget: boolean
+}
+
+const SAMPLE_DATA_SETS = {
+  bitcoin: {
+    name: 'Bitcoin Block Hashes',
+    data: [
+      '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+      '00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048',
+      '000000006a625f06636b8bb6ac7b960a8d03705d1ace08b1a19da3fdcc99ddbd',
+      '0000000082b5015589a3fdf2d4baff403e6f0be035a5d9742c1cae6295464449'
+    ]
+  },
+  transactions: {
+    name: 'Transaction IDs',
+    data: [
+      'b1fea52486ce0c62bb442b530a3f0132b826c74e473d1f2c220bfa78111c5082',
+      '7ad66c0be2d0b1b3aa3285612c2e5e0b5a2c3d4e5f6789abcdef1234567890ab',
+      'a1b2c3d4e5f67890abcdef1234567890b1c2d3e4f5678901abcdef1234567890',
+      '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+    ]
+  },
+  simple: {
+    name: 'Simple Data',
+    data: ['Alice', 'Bob', 'Charlie', 'David', 'Eve', 'Frank']
+  }
+}
+
+export default function MerkleTreeVisualizer() {
+  const [inputData, setInputData] = useState<string>('')
+  const [tree, setTree] = useState<TreeNode | null>(null)
+  const [selectedLeaf, setSelectedLeaf] = useState<string | null>(null)
+  const [merklePath, setMerklePath] = useState<MerklePathStep[]>([])
+  const [activeTab, setActiveTab] = useState<'input' | 'visualization' | 'path'>('input')
+
+  const hashData = useCallback(async (data: string): Promise<string> => {
+    const encoder = new TextEncoder()
+    const dataBuffer = encoder.encode(data)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  }, [])
+
+  const buildMerkleTree = useCallback(async (dataItems: string[]): Promise<TreeNode | null> => {
+    if (dataItems.length === 0) return null
+
+    let currentLevel: TreeNode[] = []
+    
+    for (let i = 0; i < dataItems.length; i++) {
+      const hash = await hashData(dataItems[i])
+      currentLevel.push({
+        id: `leaf-${i}`,
+        hash,
+        value: dataItems[i],
+        level: 0,
+        position: i,
+        isLeaf: true
+      })
+    }
+
+    let level = 1
+    while (currentLevel.length > 1) {
+      const nextLevel: TreeNode[] = []
+      
+      for (let i = 0; i < currentLevel.length; i += 2) {
+        const left = currentLevel[i]
+        const right = currentLevel[i + 1] || currentLevel[i]
+        
+        const combinedHash = await hashData(left.hash + right.hash)
+        
+        nextLevel.push({
+          id: `node-${level}-${Math.floor(i / 2)}`,
+          hash: combinedHash,
+          left,
+          right: right !== left ? right : undefined,
+          level,
+          position: Math.floor(i / 2),
+          isLeaf: false
+        })
+      }
+      
+      currentLevel = nextLevel
+      level++
+    }
+
+    return currentLevel[0] || null
+  }, [hashData])
+
+  const findMerklePath = useCallback((tree: TreeNode, targetLeafId: string): MerklePathStep[] => {
+    const path: MerklePathStep[] = []
+    
+    const traverse = (node: TreeNode, targetId: string): boolean => {
+      if (node.isLeaf) {
+        if (node.id === targetId) {
+          path.push({
+            hash: node.hash,
+            position: 'left',
+            isTarget: true
+          })
+          return true
+        }
+        return false
+      }
+
+      const foundInLeft = node.left && traverse(node.left, targetId)
+      const foundInRight = node.right && traverse(node.right, targetId)
+
+      if (foundInLeft || foundInRight) {
+        if (foundInLeft && node.right) {
+          path.push({
+            hash: node.right.hash,
+            position: 'right',
+            isTarget: false
+          })
+        } else if (foundInRight && node.left) {
+          path.push({
+            hash: node.left.hash,
+            position: 'left',
+            isTarget: false
+          })
+        }
+        return true
+      }
+
+      return false
+    }
+
+    traverse(tree, targetLeafId)
+    return path.reverse()
+  }, [])
+
+  const handleDataInput = async () => {
+    const dataItems = inputData
+      .split('\n')
+      .map(item => item.trim())
+      .filter(item => item.length > 0)
+
+    if (dataItems.length > 0) {
+      const merkleTree = await buildMerkleTree(dataItems)
+      setTree(merkleTree)
+      setSelectedLeaf(null)
+      setMerklePath([])
+      setActiveTab('visualization')
+    }
+  }
+
+  const loadSampleData = async (sampleKey: keyof typeof SAMPLE_DATA_SETS) => {
+    const sampleData = SAMPLE_DATA_SETS[sampleKey]
+    setInputData(sampleData.data.join('\n'))
+    const merkleTree = await buildMerkleTree(sampleData.data)
+    setTree(merkleTree)
+    setSelectedLeaf(null)
+    setMerklePath([])
+    setActiveTab('visualization')
+  }
+
+  const handleLeafClick = (leafId: string) => {
+    if (!tree) return
+    
+    setSelectedLeaf(leafId)
+    const path = findMerklePath(tree, leafId)
+    setMerklePath(path)
+    setActiveTab('path')
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+  }
+
+  const renderNode = (node: TreeNode, x: number, y: number, nodeWidth: number, nodeHeight: number) => {
+    const isSelected = selectedLeaf === node.id
+    const isInPath = merklePath.some(step => step.hash === node.hash)
+    
+    // Calculate text metrics
+    const maxCharsPerLine = Math.floor((nodeWidth - 20) / 6) // Approximate chars that fit
+    const hashLines = []
+    const fullHash = node.hash
+    
+    // Split hash into multiple lines if needed
+    for (let i = 0; i < fullHash.length; i += maxCharsPerLine) {
+      hashLines.push(fullHash.substring(i, i + maxCharsPerLine))
+    }
+    
+    return (
+      <g key={node.id}>
+        {/* Clickable area (invisible rectangle covering entire node) */}
+        <rect
+          x={x - nodeWidth / 2}
+          y={y - nodeHeight / 2}
+          width={nodeWidth}
+          height={nodeHeight}
+          fill="transparent"
+          className={node.isLeaf ? 'cursor-pointer' : ''}
+          onClick={node.isLeaf ? () => handleLeafClick(node.id) : undefined}
+        />
+        
+        {/* Visible node background */}
+        <rect
+          x={x - nodeWidth / 2}
+          y={y - nodeHeight / 2}
+          width={nodeWidth}
+          height={nodeHeight}
+          rx={8}
+          ry={8}
+          fill={isSelected ? '#a855f7' : isInPath ? '#0a84ff' : '#374151'}
+          stroke={isSelected || isInPath ? '#ffffff' : '#6b7280'}
+          strokeWidth={isSelected ? 3 : 1}
+          className={node.isLeaf ? 'hover:fill-blue-600' : ''}
+        />
+        
+        {/* Hash text */}
+        {hashLines.map((line, index) => (
+          <text
+            key={`hash-${index}`}
+            x={x}
+            y={y - (hashLines.length * 6) + (index * 12) + 6}
+            textAnchor="middle"
+            className="text-xs fill-white font-mono pointer-events-none"
+            fontSize="9"
+          >
+            {line}
+          </text>
+        ))}
+        
+        {/* Value text (for leaf nodes) */}
+        {node.value && (
+          <text
+            x={x}
+            y={y + nodeHeight / 2 - 8}
+            textAnchor="middle"
+            className="text-xs fill-gray-300 pointer-events-none"
+            fontSize="8"
+          >
+            {node.value.length > 12 ? node.value.substring(0, 12) + '...' : node.value}
+          </text>
+        )}
+        
+        {/* Copy button for hash */}
+        <circle
+          cx={x + nodeWidth / 2 - 12}
+          cy={y - nodeHeight / 2 + 12}
+          r={8}
+          fill="rgba(255, 255, 255, 0.1)"
+          stroke="rgba(255, 255, 255, 0.3)"
+          strokeWidth={1}
+          className="cursor-pointer hover:fill-white hover:fill-opacity-20"
+          onClick={() => copyToClipboard(node.hash)}
+        />
+        <text
+          x={x + nodeWidth / 2 - 12}
+          y={y - nodeHeight / 2 + 16}
+          textAnchor="middle"
+          className="text-xs fill-white pointer-events-none"
+          fontSize="8"
+        >
+          📋
+        </text>
+      </g>
+    )
+  }
+
+  const renderTree = () => {
+    if (!tree) return null
+
+    const svgWidth = 1200
+    const svgHeight = 800
+    const nodeWidth = 180
+    const nodeHeight = 80
+    const levelHeight = 120
+
+    const getAllNodes = (node: TreeNode): TreeNode[] => {
+      const nodes = [node]
+      if (node.left) nodes.push(...getAllNodes(node.left))
+      if (node.right) nodes.push(...getAllNodes(node.right))
+      return nodes
+    }
+
+    const allNodes = getAllNodes(tree)
+    const maxLevel = Math.max(...allNodes.map(n => n.level))
+    
+    const nodesByLevel = Array.from({ length: maxLevel + 1 }, () => [] as TreeNode[])
+    allNodes.forEach(node => nodesByLevel[node.level].push(node))
+
+    // Center the tree vertically by calculating total height needed
+    const totalTreeHeight = maxLevel * levelHeight + nodeHeight
+    const startY = (svgHeight - totalTreeHeight) / 2 + nodeHeight / 2
+    
+    return (
+      <div className="overflow-auto">
+        <svg width={svgWidth} height={svgHeight} className="border border-gray-700 rounded-lg bg-gray-900">
+          {/* Render connections first (behind nodes) */}
+          {nodesByLevel.map((levelNodes, level) => {
+            const y = startY + (maxLevel - level) * levelHeight
+            const levelWidth = svgWidth - 100
+            const spacing = levelWidth / (levelNodes.length + 1)
+            
+            return levelNodes.map((node, index) => {
+              const x = 50 + spacing * (index + 1)
+              const connections = []
+              
+              if (node.left) {
+                const leftLevel = nodesByLevel[node.left.level]
+                const leftIndex = leftLevel.indexOf(node.left)
+                const leftSpacing = levelWidth / (leftLevel.length + 1)
+                const leftX = 50 + leftSpacing * (leftIndex + 1)
+                const leftY = startY + (maxLevel - node.left.level) * levelHeight
+                
+                connections.push(
+                  <line
+                    key={`${node.id}-left`}
+                    x1={x}
+                    y1={y + nodeHeight / 2}
+                    x2={leftX}
+                    y2={leftY - nodeHeight / 2}
+                    stroke={merklePath.some(step => step.hash === node.hash || step.hash === node.left?.hash) ? '#0a84ff' : '#6b7280'}
+                    strokeWidth={merklePath.some(step => step.hash === node.hash || step.hash === node.left?.hash) ? 2 : 1}
+                  />
+                )
+              }
+              
+              if (node.right && node.right !== node.left) {
+                const rightLevel = nodesByLevel[node.right.level]
+                const rightIndex = rightLevel.indexOf(node.right)
+                const rightSpacing = levelWidth / (rightLevel.length + 1)
+                const rightX = 50 + rightSpacing * (rightIndex + 1)
+                const rightY = startY + (maxLevel - node.right.level) * levelHeight
+                
+                connections.push(
+                  <line
+                    key={`${node.id}-right`}
+                    x1={x}
+                    y1={y + nodeHeight / 2}
+                    x2={rightX}
+                    y2={rightY - nodeHeight / 2}
+                    stroke={merklePath.some(step => step.hash === node.hash || step.hash === node.right?.hash) ? '#0a84ff' : '#6b7280'}
+                    strokeWidth={merklePath.some(step => step.hash === node.hash || step.hash === node.right?.hash) ? 2 : 1}
+                  />
+                )
+              }
+              
+              return connections
+            })
+          })}
+          
+          {/* Render nodes on top */}
+          {nodesByLevel.map((levelNodes, level) => {
+            const y = startY + (maxLevel - level) * levelHeight
+            const levelWidth = svgWidth - 100
+            const spacing = levelWidth / (levelNodes.length + 1)
+            
+            return levelNodes.map((node, index) => {
+              const x = 50 + spacing * (index + 1)
+              return renderNode(node, x, y, nodeWidth, nodeHeight)
+            })
+          })}
+        </svg>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h1 className="text-4xl sm:text-4xl font-bold mb-4">
+          <span className="bg-gradient-to-r from-[#0a84ff] to-[#a855f7] bg-clip-text text-transparent">
+            Merkle Tree Visualizer
+          </span>
+        </h1>
+        <p className="text-xl text-[#d1d5db] max-w-3xl mx-auto">
+          Build and visualize Merkle trees with full hash display and interactive proof verification
+        </p>
+      </div>
+      
+      <div className="bg-[#0f172a] rounded-lg p-6">
+        
+        <div className="flex border-b border-gray-700 mb-6">
+          <button
+            onClick={() => setActiveTab('input')}
+            className={`px-4 py-2 ${activeTab === 'input' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-400'}`}
+          >
+            Input Data
+          </button>
+          <button
+            onClick={() => setActiveTab('visualization')}
+            className={`px-4 py-2 ${activeTab === 'visualization' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-400'}`}
+            disabled={!tree}
+          >
+            Tree Visualization
+          </button>
+          <button
+            onClick={() => setActiveTab('path')}
+            className={`px-4 py-2 ${activeTab === 'path' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-400'}`}
+            disabled={merklePath.length === 0}
+          >
+            Merkle Path
+          </button>
+        </div>
+
+        {activeTab === 'input' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-white text-sm font-medium mb-2">
+                Enter data (one item per line):
+              </label>
+              <textarea
+                value={inputData}
+                onChange={(e) => setInputData(e.target.value)}
+                placeholder="Enter your data here, one item per line..."
+                className="w-full h-32 p-3 bg-gray-800 border border-gray-600 rounded-lg text-white resize-none"
+              />
+            </div>
+            
+            <div className="flex gap-2 flex-wrap">
+              {Object.entries(SAMPLE_DATA_SETS).map(([key, sample]) => (
+                <button
+                  key={key}
+                  onClick={() => loadSampleData(key as keyof typeof SAMPLE_DATA_SETS)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm"
+                >
+                  Load {sample.name}
+                </button>
+              ))}
+            </div>
+            
+            <button
+              onClick={handleDataInput}
+              disabled={inputData.trim().length === 0}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg"
+            >
+              Build Merkle Tree
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'visualization' && (
+          <div className="space-y-4">
+            {tree ? (
+              <div className="overflow-auto">
+                <p className="text-gray-300 mb-4">
+                  Click on any leaf node (bottom row) to see its Merkle path proof.
+                </p>
+                {renderTree()}
+                {tree && (
+                  <div className="mt-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-white">Merkle Root Hash</h3>
+                      <button
+                        onClick={() => copyToClipboard(tree.hash)}
+                        className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                        title="Copy root hash to clipboard"
+                      >
+                        📋 Copy Root
+                      </button>
+                    </div>
+                    <div className="p-3 bg-gray-900 rounded border">
+                      <p className="font-mono text-sm text-blue-400 break-all leading-relaxed">{tree.hash}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-gray-400">No tree data. Please go to Input Data tab to create a tree.</p>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'path' && (
+          <div className="space-y-4">
+            {merklePath.length > 0 ? (
+              <div>
+                <h3 className="text-lg font-semibold text-white mb-4">
+                  Merkle Path Proof {selectedLeaf && `for ${selectedLeaf}`}
+                </h3>
+                <div className="space-y-3">
+                  {merklePath.map((step, index) => (
+                    <div key={index} className="p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm text-gray-400 min-w-[60px] font-medium">
+                            Step {index + 1}:
+                          </span>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            step.isTarget ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'
+                          }`}>
+                            {step.isTarget ? 'Target Hash' : `Sibling Hash (${step.position})`}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => copyToClipboard(step.hash)}
+                          className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                          title="Copy hash to clipboard"
+                        >
+                          📋 Copy
+                        </button>
+                      </div>
+                      <div className="mt-3 p-3 bg-gray-900 rounded border">
+                        <span className="font-mono text-sm text-blue-400 break-all leading-relaxed">
+                          {step.hash}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 p-4 bg-gray-800 rounded-lg">
+                  <p className="text-sm text-gray-300">
+                    This path proves that the selected leaf is included in the Merkle tree. 
+                    Each step shows either the target hash or a sibling hash needed for verification.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-400">
+                No path selected. Go to Tree Visualization and click on a leaf node to see its proof path.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

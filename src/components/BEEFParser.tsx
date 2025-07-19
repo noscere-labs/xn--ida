@@ -1,8 +1,8 @@
 'use client';
 
 import { Beef } from '@bsv/sdk';
-import { useCallback, useState, useEffect } from 'react';
-import { whatsOnChainService, Network } from '../services/whatsonchain';
+import { useCallback, useEffect, useState } from 'react';
+import { Network, whatsOnChainService } from '../services/whatsonchain';
 
 interface BumpData {
   blockHeight: number;
@@ -198,7 +198,7 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
 
     // Set validating state
     setValidatingBumps(prev => new Set([...prev, bumpIndex]));
-    
+
     // Update bump validation state to show loading
     const updatedBumps = [...parsedBEEF.bumps];
     updatedBumps[bumpIndex] = {
@@ -267,6 +267,24 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
     navigator.clipboard.writeText(text);
   };
 
+  const HashDisplay = ({ hash, label }: { hash: string; label?: string }) => (
+    <div className="group">
+      <div className="flex items-center justify-between mb-1">
+        {label && <span className="text-xs font-medium text-gray-400">{label}:</span>}
+        <button
+          onClick={() => copyToClipboard(hash)}
+          className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-all"
+          title="Copy to clipboard"
+        >
+          📋 Copy
+        </button>
+      </div>
+      <div className="p-2 bg-gray-900 rounded border font-mono text-xs text-blue-400 break-all leading-relaxed">
+        {hash}
+      </div>
+    </div>
+  );
+
   const formatSatoshis = (satoshis: number): string => {
     return `${satoshis.toLocaleString()} sat (${(satoshis / 100000000).toFixed(8)} BSV)`;
   };
@@ -278,12 +296,12 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h1 className="text-4xl sm:text-5xl font-bold mb-4">
+        <h1 className="text-4xl sm:text-4xl font-bold mb-4">
           <span className="bg-gradient-to-r from-[#0a84ff] to-[#a855f7] bg-clip-text text-transparent">
             BEEF Parser
           </span>
         </h1>
-        <p className="text-xl text-[#d1d5db] max-w-2xl mx-auto">
+        <p className="text-xl text-[#d1d5db] max-w-3xl mx-auto">
           Parse and analyze BEEF (Background Evaluation Extended Format) transactions
         </p>
       </div>
@@ -309,12 +327,11 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
             </button>
           </div>
         )}
-        
+
         {/* Collapsible Content */}
-        <div 
-          className={`transition-all duration-500 ease-in-out overflow-hidden ${
-            isParserCollapsed ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'
-          }`}
+        <div
+          className={`transition-all duration-500 ease-in-out overflow-hidden ${isParserCollapsed ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'
+            }`}
           style={{
             transform: isParserCollapsed ? 'translate3d(0, -10px, 0)' : 'translate3d(0, 0, 0)',
             willChange: 'transform, opacity, max-height',
@@ -431,18 +448,7 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
                 </div>
 
                 <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium">Raw BEEF Data</span>
-                    <button
-                      onClick={() => copyToClipboard(parsedBEEF.raw)}
-                      className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded hover:bg-gray-600 transition-colors"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                  <div className="font-mono text-xs text-[#d1d5db] break-all bg-gray-900 p-3 rounded border max-h-20 overflow-y-auto">
-                    {parsedBEEF.raw}
-                  </div>
+                  <HashDisplay hash={parsedBEEF.raw} label="Raw BEEF Data" />
                   <div className="text-sm text-gray-400 mt-2">
                     Total size: {parsedBEEF.totalSize.toLocaleString()} bytes
                   </div>
@@ -484,9 +490,9 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
                             Block: {bump.blockHeight}, Tree Height: {bump.treeHeight}
                           </span>
                           {bump.validation?.blockHash && (
-                            <span className="text-xs text-green-400">
-                              Hash: {bump.validation.blockHash.substring(0, 12)}...
-                            </span>
+                            <div className="text-xs text-green-400">
+                              Block Hash: {bump.validation.blockHash}
+                            </div>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
@@ -522,7 +528,7 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
                           {bump.validation && (
                             <div className="border border-gray-600 rounded p-3 space-y-2">
                               <h5 className="font-medium text-sm">Validation Results</h5>
-                              
+
                               {bump.validation.isValidating ? (
                                 <div className="flex items-center gap-2 text-sm text-[#0a84ff]">
                                   <div className="w-4 h-4 border-2 border-[#0a84ff] border-t-transparent rounded-full animate-spin" />
@@ -530,36 +536,35 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
                                 </div>
                               ) : (
                                 <>
-                                  <div className={`text-sm font-medium ${
-                                    bump.validation.isValid ? 'text-green-400' : 'text-red-400'
-                                  }`}>
+                                  <div className={`text-sm font-medium ${bump.validation.isValid ? 'text-green-400' : 'text-red-400'
+                                    }`}>
                                     {bump.validation.isValid ? '✓ Valid BUMP proof' : '✗ Invalid BUMP proof'}
                                   </div>
-                                  
+
                                   {bump.validation.blockHash && (
-                                    <div className="text-xs text-gray-400">
-                                      <span className="font-medium">Block Hash:</span> {bump.validation.blockHash}
+                                    <div className="mt-2">
+                                      <HashDisplay hash={bump.validation.blockHash} label="Block Hash" />
                                     </div>
                                   )}
-                                  
+
                                   {bump.validation.merkleRoot && (
-                                    <div className="text-xs text-gray-400">
-                                      <span className="font-medium">Merkle Root:</span> {bump.validation.merkleRoot}
+                                    <div className="mt-2">
+                                      <HashDisplay hash={bump.validation.merkleRoot} label="Merkle Root" />
                                     </div>
                                   )}
-                                  
+
                                   {bump.validation.validTransactions.length > 0 && (
                                     <div className="text-xs text-green-400">
                                       <span className="font-medium">Valid Transactions:</span> {bump.validation.validTransactions.length}
                                     </div>
                                   )}
-                                  
+
                                   {bump.validation.invalidTransactions.length > 0 && (
                                     <div className="text-xs text-red-400">
                                       <span className="font-medium">Invalid Transactions:</span> {bump.validation.invalidTransactions.length}
                                     </div>
                                   )}
-                                  
+
                                   {bump.validation.error && (
                                     <div className="text-xs text-red-400 bg-red-900/20 p-2 rounded">
                                       {bump.validation.error}
@@ -578,19 +583,19 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
                                   <div className="font-medium text-sm mb-2">Level {levelIndex} ({level.length} leaves)</div>
                                   <div className="grid gap-2">
                                     {level.map((leaf, leafIndex) => (
-                                      <div key={leafIndex} className="flex items-center gap-2 text-xs">
-                                        <span className="w-12 text-gray-400">#{leaf.offset}</span>
-                                        <span className={`px-2 py-1 rounded text-xs ${leaf.isClientTxid ? 'bg-[#0a84ff]/20 text-[#0a84ff]' :
-                                          leaf.isDuplicate ? 'bg-yellow-500/20 text-yellow-400' :
-                                            'bg-gray-700 text-gray-300'
-                                          }`}>
-                                          {leaf.isClientTxid ? 'Client TXID' :
-                                            leaf.isDuplicate ? 'Duplicate' : 'Sibling'}
-                                        </span>
-                                        {leaf.hash && (
-                                          <span className="font-mono text-gray-400 truncate">
-                                            {leaf.hash.substring(0, 16)}...
+                                      <div key={leafIndex} className="border border-gray-600 rounded p-3 space-y-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-gray-400 text-xs font-medium">Offset #{leaf.offset}</span>
+                                          <span className={`px-2 py-1 rounded text-xs font-medium ${leaf.isClientTxid ? 'bg-[#0a84ff]/20 text-[#0a84ff]' :
+                                            leaf.isDuplicate ? 'bg-yellow-500/20 text-yellow-400' :
+                                              'bg-gray-700 text-gray-300'
+                                            }`}>
+                                            {leaf.isClientTxid ? 'Client TXID' :
+                                              leaf.isDuplicate ? 'Duplicate' : 'Sibling'}
                                           </span>
+                                        </div>
+                                        {leaf.hash && (
+                                          <HashDisplay hash={leaf.hash} />
                                         )}
                                       </div>
                                     ))}
@@ -617,20 +622,19 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
                     >
                       <div className="flex items-center gap-2">
                         <span className="font-medium">Transaction {index + 1}</span>
-                        <span className="text-sm text-[#d1d5db] font-mono">{tx.txid.substring(0, 16)}...</span>
+                        <span className="text-sm text-[#d1d5db] font-mono">{tx.txid}</span>
                         {tx.hasBump && (
-                          <span className={`px-2 py-1 text-xs rounded ${
-                            parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === true
-                              ? 'bg-green-500/20 text-green-400'
-                              : parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === false
+                          <span className={`px-2 py-1 text-xs rounded ${parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === true
+                            ? 'bg-green-500/20 text-green-400'
+                            : parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === false
                               ? 'bg-red-500/20 text-red-400'
                               : 'bg-gray-500/20 text-gray-400'
-                          }`}>
+                            }`}>
                             {parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === true
                               ? '✓ Validated Proof'
                               : parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === false
-                              ? '✗ Invalid Proof'
-                              : 'Has Proof'
+                                ? '✗ Invalid Proof'
+                                : 'Has Proof'
                             }
                           </span>
                         )}
@@ -644,10 +648,7 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
                       <div className="p-4 space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="font-medium">Transaction ID:</span>
-                            <div className="font-mono text-xs bg-gray-900 p-2 rounded mt-1 break-all">
-                              {tx.txid}
-                            </div>
+                            <HashDisplay hash={tx.txid} label="Transaction ID" />
                           </div>
                           <div className="space-y-2">
                             <div><span className="font-medium">Version:</span> {tx.version}</div>
@@ -666,7 +667,9 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
                                 <div key={inputIndex} className="bg-red-500/10 border border-red-500/20 p-3 rounded text-xs">
                                   <div className="font-medium mb-1">Input #{inputIndex}</div>
                                   <div className="space-y-1">
-                                    <div><span className="font-medium">Prev TX:</span> {input.prevTxHash.substring(0, 16)}...</div>
+                                    <div className="mt-2">
+                                      <HashDisplay hash={input.prevTxHash} label="Previous TX" />
+                                    </div>
                                     <div><span className="font-medium">Output:</span> {input.prevTxIndex}</div>
                                     <div><span className="font-medium">Script:</span> {input.scriptLength} bytes</div>
                                     <div><span className="font-medium">Sequence:</span> {input.sequence}</div>
@@ -686,8 +689,8 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
                                     <div><span className="font-medium">Value:</span> {formatSatoshis(output.value)}</div>
                                     <div><span className="font-medium">Script:</span> {output.scriptLength} bytes</div>
                                     {output.script && (
-                                      <div className="font-mono bg-gray-900 p-1 rounded break-all">
-                                        {output.script.substring(0, 32)}...
+                                      <div className="mt-2">
+                                        <HashDisplay hash={output.script} label="Script" />
                                       </div>
                                     )}
                                   </div>
@@ -698,18 +701,7 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
                         </div>
 
                         <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium">Raw Transaction</span>
-                            <button
-                              onClick={() => copyToClipboard(tx.rawHex)}
-                              className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded hover:bg-gray-600 transition-colors"
-                            >
-                              Copy
-                            </button>
-                          </div>
-                          <div className="font-mono text-xs text-[#d1d5db] break-all bg-gray-900 p-3 rounded max-h-32 overflow-y-auto">
-                            {tx.rawHex}
-                          </div>
+                          <HashDisplay hash={tx.rawHex} label="Raw Transaction" />
                         </div>
                       </div>
                     )}
