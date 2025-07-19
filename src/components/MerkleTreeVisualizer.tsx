@@ -20,6 +20,15 @@ interface MerklePathStep {
   isTarget: boolean
 }
 
+interface ProofStep {
+  stepNumber: number
+  operation: string
+  leftHash: string
+  rightHash: string
+  result: string
+  description: string
+}
+
 const SAMPLE_DATA_SETS = {
   bitcoin: {
     name: 'Bitcoin Block Hashes',
@@ -60,6 +69,8 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
   const [blockError, setBlockError] = useState<string>('')
   const [showPathOnly, setShowPathOnly] = useState<boolean>(false)
   const [pathNodes, setPathNodes] = useState<Set<string>>(new Set())
+  const [proofSteps, setProofSteps] = useState<ProofStep[]>([])
+  const [calculatingSteps, setCalculatingSteps] = useState<boolean>(false)
 
   // Sync network with WhatsOnChain service
   useEffect(() => {
@@ -67,10 +78,35 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
   }, [network]);
 
   const hashData = useCallback(async (data: string): Promise<string> => {
+    // For Bitcoin-style merkle trees, we need double SHA-256
     const encoder = new TextEncoder()
     const dataBuffer = encoder.encode(data)
-    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer)
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    
+    // First SHA-256
+    const firstHash = await crypto.subtle.digest('SHA-256', dataBuffer)
+    
+    // Second SHA-256 (hash of the first hash)
+    const secondHash = await crypto.subtle.digest('SHA-256', firstHash)
+    
+    const hashArray = Array.from(new Uint8Array(secondHash))
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  }, [])
+
+  const hashBinary = useCallback(async (leftHash: string, rightHash: string): Promise<string> => {
+    // Convert hex strings to binary data for concatenation
+    const leftBytes = new Uint8Array(leftHash.match(/.{2}/g)?.map(byte => parseInt(byte, 16)) || [])
+    const rightBytes = new Uint8Array(rightHash.match(/.{2}/g)?.map(byte => parseInt(byte, 16)) || [])
+    
+    // Concatenate binary data
+    const combined = new Uint8Array(leftBytes.length + rightBytes.length)
+    combined.set(leftBytes, 0)
+    combined.set(rightBytes, leftBytes.length)
+    
+    // Double SHA-256 of the concatenated binary data
+    const firstHash = await crypto.subtle.digest('SHA-256', combined)
+    const secondHash = await crypto.subtle.digest('SHA-256', firstHash)
+    
+    const hashArray = Array.from(new Uint8Array(secondHash))
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
   }, [])
 
@@ -97,9 +133,15 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
       
       for (let i = 0; i < currentLevel.length; i += 2) {
         const left = currentLevel[i]
-        const right = currentLevel[i + 1] || currentLevel[i]
+        let right = currentLevel[i + 1]
         
-        const combinedHash = await hashData(left.hash + right.hash)
+        // Bitcoin merkle tree: if odd number of nodes, duplicate the last one
+        if (!right) {
+          right = left
+        }
+        
+        // Use binary concatenation instead of string concatenation
+        const combinedHash = await hashBinary(left.hash, right.hash)
         
         nextLevel.push({
           id: `node-${level}-${Math.floor(i / 2)}`,
@@ -117,17 +159,37 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     }
 
     return currentLevel[0] || null
-  }, [hashData])
+  }, [hashData, hashBinary])
 
   const findMerklePath = useCallback((tree: TreeNode, targetLeafId: string): MerklePathStep[] => {
     const path: MerklePathStep[] = []
+    let currentIndex = 0
     
-    const traverse = (node: TreeNode, targetId: string): boolean => {
+    // First, find the index of the target leaf
+    const findLeafIndex = (node: TreeNode): number => {
+      if (node.isLeaf && node.id === targetLeafId) {
+        return node.position
+      }
+      if (node.left) {
+        const leftIndex = findLeafIndex(node.left)
+        if (leftIndex !== -1) return leftIndex
+      }
+      if (node.right) {
+        const rightIndex = findLeafIndex(node.right)
+        if (rightIndex !== -1) return rightIndex
+      }
+      return -1
+    }
+    
+    currentIndex = findLeafIndex(tree)
+    if (currentIndex === -1) return []
+    
+    const traverse = (node: TreeNode, targetId: string, nodeIndex: number): boolean => {
       if (node.isLeaf) {
         if (node.id === targetId) {
           path.push({
             hash: node.hash,
-            position: 'left',
+            position: nodeIndex % 2 === 0 ? 'left' : 'right',
             isTarget: true
           })
           return true
@@ -135,10 +197,14 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
         return false
       }
 
-      const foundInLeft = node.left && traverse(node.left, targetId)
-      const foundInRight = node.right && traverse(node.right, targetId)
+      const leftChildIndex = nodeIndex * 2
+      const rightChildIndex = nodeIndex * 2 + 1
+      
+      const foundInLeft = node.left && traverse(node.left, targetId, leftChildIndex)
+      const foundInRight = !foundInLeft && node.right && traverse(node.right, targetId, rightChildIndex)
 
       if (foundInLeft || foundInRight) {
+        // Add sibling hash to the path
         if (foundInLeft && node.right) {
           path.push({
             hash: node.right.hash,
@@ -158,7 +224,7 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
       return false
     }
 
-    traverse(tree, targetLeafId)
+    traverse(tree, targetLeafId, currentIndex)
     return path.reverse()
   }, [])
 
@@ -276,6 +342,83 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
   }
+
+  const calculateMerkleProofSteps = useCallback(async (targetLeafHash: string, path: MerklePathStep[]) => {
+    const steps = []
+    let currentHash = targetLeafHash
+    
+    for (let i = 0; i < path.length; i++) {
+      const step = path[i]
+      if (step.isTarget) {
+        // First step is just the target leaf
+        steps.push({
+          stepNumber: i + 1,
+          operation: 'Start with target leaf',
+          leftHash: currentHash,
+          rightHash: '',
+          result: currentHash,
+          description: 'Target transaction hash'
+        })
+      } else {
+        // Calculate combined hash using correct merkle tree logic with binary concatenation
+        // The sibling's position tells us whether it goes on left or right
+        const leftHash = step.position === 'left' ? step.hash : currentHash
+        const rightHash = step.position === 'right' ? step.hash : currentHash
+        
+        // Use binary concatenation instead of string concatenation
+        const resultHash = await hashBinary(leftHash, rightHash)
+        
+        steps.push({
+          stepNumber: i + 1,
+          operation: `DoubleSHA256(left + right)`,
+          leftHash,
+          rightHash,
+          result: resultHash,
+          description: `Combine current hash with ${step.position} sibling using binary concatenation`
+        })
+        
+        // The result becomes our new current hash for the next level
+        currentHash = resultHash
+      }
+    }
+    
+    return steps
+  }, [hashBinary])
+
+  // Calculate proof steps when merkle path changes
+  useEffect(() => {
+    if (merklePath.length > 0 && selectedLeaf && tree) {
+      setCalculatingSteps(true)
+      
+      // Find the selected leaf node to get its hash
+      const findLeafNode = (node: TreeNode): TreeNode | null => {
+        if (node.isLeaf && node.id === selectedLeaf) return node
+        if (node.left) {
+          const found = findLeafNode(node.left)
+          if (found) return found
+        }
+        if (node.right) {
+          const found = findLeafNode(node.right)
+          if (found) return found
+        }
+        return null
+      }
+      
+      const leafNode = findLeafNode(tree)
+      if (leafNode) {
+        calculateMerkleProofSteps(leafNode.hash, merklePath).then(steps => {
+          setProofSteps(steps)
+          setCalculatingSteps(false)
+        }).catch(() => {
+          setCalculatingSteps(false)
+        })
+      } else {
+        setCalculatingSteps(false)
+      }
+    } else {
+      setProofSteps([])
+    }
+  }, [merklePath, selectedLeaf, tree, calculateMerkleProofSteps])
 
   const renderNode = (node: TreeNode, x: number, y: number, nodeWidth: number, nodeHeight: number) => {
     const isSelected = selectedLeaf === node.id
@@ -672,6 +815,7 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
                                 setMerklePath([])
                                 setShowPathOnly(false)
                                 setPathNodes(new Set())
+                                setProofSteps([])
                               }}
                               className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
                               title="Reset selection"
@@ -745,6 +889,103 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
                         This path proves that the selected leaf is included in the Merkle tree. 
                         Each step shows either the target hash or a sibling hash needed for verification.
                       </p>
+                    </div>
+
+                    {/* Hash Calculation Steps */}
+                    <div className="mt-6">
+                      <h4 className="text-lg font-semibold text-white mb-4">
+                        🧮 Hash Calculation Steps
+                      </h4>
+                      {calculatingSteps ? (
+                        <div className="flex items-center gap-2 p-4 bg-gray-800 rounded-lg">
+                          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-gray-300">Calculating merkle proof steps...</span>
+                        </div>
+                      ) : proofSteps.length > 0 ? (
+                        <div className="space-y-4">
+                          {proofSteps.map((step, index) => (
+                            <div key={index} className="p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-3">
+                                  <span className="bg-green-600 text-white px-2 py-1 rounded text-xs font-medium">
+                                    Step {step.stepNumber}
+                                  </span>
+                                  <span className="text-sm text-green-300 font-medium">
+                                    {step.description}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => copyToClipboard(step.result)}
+                                  className="px-2 py-1 bg-green-700 hover:bg-green-600 text-white text-xs rounded transition-colors"
+                                  title="Copy result hash"
+                                >
+                                  📋 Copy
+                                </button>
+                              </div>
+                              
+                              {step.rightHash ? (
+                                <div className="space-y-3">
+                                  <div className="text-xs text-green-200 font-medium">{step.operation}</div>
+                                  
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+                                    <div>
+                                      <div className="text-xs text-gray-400 mb-1">Left Hash:</div>
+                                      <div className="p-2 bg-gray-800 rounded border font-mono text-xs text-blue-400 break-all">
+                                        {step.leftHash}
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="text-center">
+                                      <div className="text-green-400 text-lg font-bold">+</div>
+                                      <div className="text-xs text-gray-400">concatenate</div>
+                                    </div>
+                                    
+                                    <div>
+                                      <div className="text-xs text-gray-400 mb-1">Right Hash:</div>
+                                      <div className="p-2 bg-gray-800 rounded border font-mono text-xs text-blue-400 break-all">
+                                        {step.rightHash}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="text-center">
+                                    <div className="text-green-400 text-lg font-bold">↓</div>
+                                    <div className="text-xs text-gray-400">SHA-256</div>
+                                  </div>
+                                  
+                                  <div>
+                                    <div className="text-xs text-gray-400 mb-1">Result:</div>
+                                    <div className="p-3 bg-green-900/30 border border-green-500/50 rounded font-mono text-sm text-green-400 break-all">
+                                      {step.result}
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div>
+                                  <div className="text-xs text-gray-400 mb-1">Starting Hash:</div>
+                                  <div className="p-3 bg-green-900/30 border border-green-500/50 rounded font-mono text-sm text-green-400 break-all">
+                                    {step.result}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          
+                          <div className="p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-blue-400 font-medium">✅ Verification Complete</span>
+                            </div>
+                            <p className="text-sm text-blue-300">
+                              The final calculated hash should match the merkle root to prove the transaction is included in the block.
+                              Compare the last result above with the merkle root hash displayed at the top.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-gray-800 rounded-lg text-center text-gray-400">
+                          Click a leaf node to see the hash calculation steps
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
