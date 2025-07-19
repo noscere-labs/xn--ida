@@ -163,33 +163,14 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
 
   const findMerklePath = useCallback((tree: TreeNode, targetLeafId: string): MerklePathStep[] => {
     const path: MerklePathStep[] = []
-    let currentIndex = 0
     
-    // First, find the index of the target leaf
-    const findLeafIndex = (node: TreeNode): number => {
-      if (node.isLeaf && node.id === targetLeafId) {
-        return node.position
-      }
-      if (node.left) {
-        const leftIndex = findLeafIndex(node.left)
-        if (leftIndex !== -1) return leftIndex
-      }
-      if (node.right) {
-        const rightIndex = findLeafIndex(node.right)
-        if (rightIndex !== -1) return rightIndex
-      }
-      return -1
-    }
-    
-    currentIndex = findLeafIndex(tree)
-    if (currentIndex === -1) return []
-    
-    const traverse = (node: TreeNode, targetId: string, nodeIndex: number): boolean => {
+    const traverse = (node: TreeNode): boolean => {
       if (node.isLeaf) {
-        if (node.id === targetId) {
+        if (node.id === targetLeafId) {
+          // Add the target leaf itself as the first step
           path.push({
             hash: node.hash,
-            position: nodeIndex % 2 === 0 ? 'left' : 'right',
+            position: 'left', // This will be corrected in calculateMerkleProofSteps
             isTarget: true
           })
           return true
@@ -197,21 +178,25 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
         return false
       }
 
-      const leftChildIndex = nodeIndex * 2
-      const rightChildIndex = nodeIndex * 2 + 1
-      
-      const foundInLeft = node.left && traverse(node.left, targetId, leftChildIndex)
-      const foundInRight = !foundInLeft && node.right && traverse(node.right, targetId, rightChildIndex)
-
-      if (foundInLeft || foundInRight) {
-        // Add sibling hash to the path
-        if (foundInLeft && node.right) {
+      // Check if target is in left subtree
+      const foundInLeft = node.left && traverse(node.left)
+      if (foundInLeft) {
+        // Target is in left subtree, so we need the right sibling
+        if (node.right) {
           path.push({
             hash: node.right.hash,
             position: 'right',
             isTarget: false
           })
-        } else if (foundInRight && node.left) {
+        }
+        return true
+      }
+
+      // Check if target is in right subtree  
+      const foundInRight = node.right && traverse(node.right)
+      if (foundInRight) {
+        // Target is in right subtree, so we need the left sibling
+        if (node.left) {
           path.push({
             hash: node.left.hash,
             position: 'left',
@@ -224,7 +209,7 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
       return false
     }
 
-    traverse(tree, targetLeafId, currentIndex)
+    traverse(tree)
     return path.reverse()
   }, [])
 
@@ -343,9 +328,29 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     navigator.clipboard.writeText(text)
   }
 
-  const calculateMerkleProofSteps = useCallback(async (targetLeafHash: string, path: MerklePathStep[]) => {
+  const calculateMerkleProofSteps = useCallback(async (targetLeafHash: string, path: MerklePathStep[], targetLeafId: string) => {
+    if (!tree) return []
+    
     const steps = []
     let currentHash = targetLeafHash
+    
+    // Find the target leaf position to determine if it's left or right at each level
+    const findLeafPosition = (node: TreeNode): number => {
+      if (node.isLeaf && node.id === targetLeafId) {
+        return node.position
+      }
+      if (node.left) {
+        const leftPos = findLeafPosition(node.left)
+        if (leftPos !== -1) return leftPos
+      }
+      if (node.right) {
+        const rightPos = findLeafPosition(node.right)
+        if (rightPos !== -1) return rightPos
+      }
+      return -1
+    }
+    
+    let leafPosition = findLeafPosition(tree)
     
     for (let i = 0; i < path.length; i++) {
       const step = path[i]
@@ -360,10 +365,12 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
           description: 'Target transaction hash'
         })
       } else {
-        // Calculate combined hash using correct merkle tree logic with binary concatenation
-        // The sibling's position tells us whether it goes on left or right
-        const leftHash = step.position === 'left' ? step.hash : currentHash
-        const rightHash = step.position === 'right' ? step.hash : currentHash
+        // Determine if current node is on left or right based on its position
+        const isCurrentOnLeft = leafPosition % 2 === 0
+        
+        // Set left and right hashes based on actual position
+        const leftHash = isCurrentOnLeft ? currentHash : step.hash
+        const rightHash = isCurrentOnLeft ? step.hash : currentHash
         
         // Use binary concatenation instead of string concatenation
         const resultHash = await hashBinary(leftHash, rightHash)
@@ -374,16 +381,18 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
           leftHash,
           rightHash,
           result: resultHash,
-          description: `Combine current hash with ${step.position} sibling using binary concatenation`
+          description: `Combine current hash (${isCurrentOnLeft ? 'left' : 'right'}) with ${step.position} sibling`
         })
         
         // The result becomes our new current hash for the next level
         currentHash = resultHash
+        // Move to parent level (divide position by 2)
+        leafPosition = Math.floor(leafPosition / 2)
       }
     }
     
     return steps
-  }, [hashBinary])
+  }, [hashBinary, tree])
 
   // Calculate proof steps when merkle path changes
   useEffect(() => {
@@ -406,7 +415,7 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
       
       const leafNode = findLeafNode(tree)
       if (leafNode) {
-        calculateMerkleProofSteps(leafNode.hash, merklePath).then(steps => {
+        calculateMerkleProofSteps(leafNode.hash, merklePath, selectedLeaf).then(steps => {
           setProofSteps(steps)
           setCalculatingSteps(false)
         }).catch(() => {
