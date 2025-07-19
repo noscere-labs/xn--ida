@@ -401,21 +401,33 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
                     </div>
                   </div>
 
-                  <div className="bg-green-500/10 border border-green-500/20 p-4 rounded-lg">
-                    <div className="font-medium mb-2">BUMP Proofs</div>
+                  <button
+                    onClick={() => setActiveTab('bumps')}
+                    className="bg-green-500/10 border border-green-500/20 p-4 rounded-lg text-left hover:bg-green-500/20 hover:border-green-500/30 transition-all duration-200 hover:scale-[1.02] cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">BUMP Proofs</span>
+                      <span className="text-xs text-green-400">Click to view →</span>
+                    </div>
                     <div className="text-2xl font-bold text-green-400">{parsedBEEF.bumps.length}</div>
                     <div className="text-sm text-[#d1d5db]">
                       {parsedBEEF.bumps.filter(b => b.validation?.isValid).length} validated, {parsedBEEF.bumps.length} total
                     </div>
-                  </div>
+                  </button>
 
-                  <div className="bg-purple-500/10 border border-purple-500/20 p-4 rounded-lg">
-                    <div className="font-medium mb-2">Transactions</div>
+                  <button
+                    onClick={() => setActiveTab('transactions')}
+                    className="bg-purple-500/10 border border-purple-500/20 p-4 rounded-lg text-left hover:bg-purple-500/20 hover:border-purple-500/30 transition-all duration-200 hover:scale-[1.02] cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">Transactions</span>
+                      <span className="text-xs text-purple-400">Click to view →</span>
+                    </div>
                     <div className="text-2xl font-bold text-purple-400">{parsedBEEF.transactions.length}</div>
                     <div className="text-sm text-[#d1d5db]">
                       {parsedBEEF.transactions.filter(tx => tx.hasBump).length} with proofs
                     </div>
-                  </div>
+                  </button>
                 </div>
 
                 <div className="bg-gray-800/50 p-4 rounded-lg">
