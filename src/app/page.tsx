@@ -76,17 +76,22 @@ export default function Home() {
   if (selectedTool === 'merkle-tree') {
     return (
       <div className="min-h-screen bg-black text-white font-sans flex flex-col">
-        <Header breadcrumbs={[
-          {
-            label: 'Tools',
-            href: '#',
-            onClick: handleBackToHome
-          },
-          { label: 'Merkle Tree Visualizer' }
-        ]} />
+        <Header 
+          breadcrumbs={[
+            {
+              label: 'Tools',
+              href: '#',
+              onClick: handleBackToHome
+            },
+            { label: 'Merkle Tree Visualizer' }
+          ]}
+          showNetworkToggle={true}
+          network={network}
+          onNetworkChange={setNetwork}
+        />
 
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
-          <MerkleTreeVisualizer />
+          <MerkleTreeVisualizer network={network} />
         </main>
 
         <Footer />

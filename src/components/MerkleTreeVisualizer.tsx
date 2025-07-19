@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { whatsOnChainService, Network } from '../services/whatsonchain'
 
 interface TreeNode {
   id: string
@@ -44,12 +45,26 @@ const SAMPLE_DATA_SETS = {
   }
 }
 
-export default function MerkleTreeVisualizer() {
+interface MerkleTreeVisualizerProps {
+  network?: Network;
+}
+
+export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVisualizerProps) {
   const [inputData, setInputData] = useState<string>('')
   const [tree, setTree] = useState<TreeNode | null>(null)
   const [selectedLeaf, setSelectedLeaf] = useState<string | null>(null)
   const [merklePath, setMerklePath] = useState<MerklePathStep[]>([])
   const [activeTab, setActiveTab] = useState<'input' | 'visualization'>('input')
+  const [blockInput, setBlockInput] = useState<string>('')
+  const [loadingBlock, setLoadingBlock] = useState<boolean>(false)
+  const [blockError, setBlockError] = useState<string>('')
+  const [showPathOnly, setShowPathOnly] = useState<boolean>(false)
+  const [pathNodes, setPathNodes] = useState<Set<string>>(new Set())
+
+  // Sync network with WhatsOnChain service
+  useEffect(() => {
+    whatsOnChainService.setNetwork(network);
+  }, [network]);
 
   const hashData = useCallback(async (data: string): Promise<string> => {
     const encoder = new TextEncoder()
@@ -147,6 +162,40 @@ export default function MerkleTreeVisualizer() {
     return path.reverse()
   }, [])
 
+  const getPathNodes = useCallback((tree: TreeNode, targetLeafId: string): Set<string> => {
+    const pathNodeIds = new Set<string>()
+    
+    const traverse = (node: TreeNode, targetId: string): boolean => {
+      if (node.isLeaf) {
+        if (node.id === targetId) {
+          pathNodeIds.add(node.id) // Add the target leaf
+          return true
+        }
+        return false
+      }
+
+      const foundInLeft = node.left && traverse(node.left, targetId)
+      const foundInRight = node.right && traverse(node.right, targetId)
+
+      if (foundInLeft || foundInRight) {
+        pathNodeIds.add(node.id) // Add this intermediate node
+        
+        // Add sibling nodes needed for merkle proof
+        if (foundInLeft && node.right) {
+          pathNodeIds.add(node.right.id) // Add right sibling
+        } else if (foundInRight && node.left) {
+          pathNodeIds.add(node.left.id) // Add left sibling
+        }
+        return true
+      }
+
+      return false
+    }
+
+    traverse(tree, targetLeafId)
+    return pathNodeIds
+  }, [])
+
   const handleDataInput = async () => {
     const dataItems = inputData
       .split('\n')
@@ -172,12 +221,56 @@ export default function MerkleTreeVisualizer() {
     setActiveTab('visualization')
   }
 
+  const loadBlockData = async () => {
+    if (!blockInput.trim()) return
+    
+    setLoadingBlock(true)
+    setBlockError('')
+    
+    try {
+      let blockData
+      
+      // Check if input is a number (block height) or hash
+      if (/^\d+$/.test(blockInput.trim())) {
+        const height = parseInt(blockInput.trim())
+        blockData = await whatsOnChainService.getBlockByHeight(height)
+      } else {
+        // Assume it's a block hash
+        blockData = await whatsOnChainService.getBlockByHash(blockInput.trim())
+      }
+      
+      if (!blockData.tx || blockData.tx.length === 0) {
+        throw new Error('No transactions found in this block')
+      }
+      
+      // Set the input data to the transaction IDs
+      setInputData(blockData.tx.join('\n'))
+      
+      // Build merkle tree from transaction IDs
+      const merkleTree = await buildMerkleTree(blockData.tx)
+      setTree(merkleTree)
+      setSelectedLeaf(null)
+      setMerklePath([])
+      setActiveTab('visualization')
+      
+    } catch (error) {
+      setBlockError(error instanceof Error ? error.message : 'Failed to load block data')
+    } finally {
+      setLoadingBlock(false)
+    }
+  }
+
   const handleLeafClick = (leafId: string) => {
     if (!tree) return
     
     setSelectedLeaf(leafId)
     const path = findMerklePath(tree, leafId)
     setMerklePath(path)
+    
+    // Collect nodes involved in the merkle path and enable path-only view
+    const pathNodeIds = getPathNodes(tree, leafId)
+    setPathNodes(pathNodeIds)
+    setShowPathOnly(true)
   }
 
   const copyToClipboard = (text: string) => {
@@ -278,11 +371,10 @@ export default function MerkleTreeVisualizer() {
   const renderTree = () => {
     if (!tree) return null
 
-    const svgWidth = 1200
-    const svgHeight = 800
     const nodeWidth = 180
     const nodeHeight = 80
     const levelHeight = 120
+    const minNodeSpacing = 20 // Minimum space between nodes
 
     const getAllNodes = (node: TreeNode): TreeNode[] => {
       const nodes = [node]
@@ -294,16 +386,37 @@ export default function MerkleTreeVisualizer() {
     const allNodes = getAllNodes(tree)
     const maxLevel = Math.max(...allNodes.map(n => n.level))
     
+    // Filter nodes based on view mode
+    const filteredNodes = showPathOnly 
+      ? allNodes.filter(node => pathNodes.has(node.id))
+      : allNodes
+    
     const nodesByLevel = Array.from({ length: maxLevel + 1 }, () => [] as TreeNode[])
-    allNodes.forEach(node => nodesByLevel[node.level].push(node))
+    filteredNodes.forEach(node => nodesByLevel[node.level].push(node))
+
+    // Calculate dynamic width based on the widest level
+    const maxNodesInLevel = Math.max(...nodesByLevel.map(level => level.length))
+    
+    // In path-only mode, use more generous spacing for better visualization
+    const effectiveNodeWidth = showPathOnly ? nodeWidth + 40 : nodeWidth
+    const effectiveSpacing = showPathOnly ? minNodeSpacing + 40 : minNodeSpacing
+    const minWidth = showPathOnly ? 800 : 1200
+    
+    const calculatedWidth = Math.max(
+      minWidth,
+      maxNodesInLevel * (effectiveNodeWidth + effectiveSpacing) + 100
+    )
+    
+    const svgWidth = calculatedWidth
+    const svgHeight = Math.max(800, maxLevel * levelHeight + nodeHeight + 200)
 
     // Center the tree vertically by calculating total height needed
     const totalTreeHeight = maxLevel * levelHeight + nodeHeight
     const startY = (svgHeight - totalTreeHeight) / 2 + nodeHeight / 2
     
     return (
-      <div className="overflow-auto">
-        <svg width={svgWidth} height={svgHeight} className="border border-gray-700 rounded-lg bg-gray-900">
+      <div className="overflow-auto border border-gray-700 rounded-lg bg-gray-900" style={{ maxHeight: '80vh' }}>
+        <svg width={svgWidth} height={svgHeight} className="bg-gray-900">
           {/* Render connections first (behind nodes) */}
           {nodesByLevel.map((levelNodes, level) => {
             const y = startY + (maxLevel - level) * levelHeight
@@ -314,44 +427,48 @@ export default function MerkleTreeVisualizer() {
               const x = 50 + spacing * (index + 1)
               const connections = []
               
-              if (node.left) {
+              if (node.left && (!showPathOnly || pathNodes.has(node.left.id))) {
                 const leftLevel = nodesByLevel[node.left.level]
                 const leftIndex = leftLevel.indexOf(node.left)
-                const leftSpacing = levelWidth / (leftLevel.length + 1)
-                const leftX = 50 + leftSpacing * (leftIndex + 1)
-                const leftY = startY + (maxLevel - node.left.level) * levelHeight
-                
-                connections.push(
-                  <line
-                    key={`${node.id}-left`}
-                    x1={x}
-                    y1={y + nodeHeight / 2}
-                    x2={leftX}
-                    y2={leftY - nodeHeight / 2}
-                    stroke={merklePath.some(step => step.hash === node.hash || step.hash === node.left?.hash) ? '#0a84ff' : '#6b7280'}
-                    strokeWidth={merklePath.some(step => step.hash === node.hash || step.hash === node.left?.hash) ? 2 : 1}
-                  />
-                )
+                if (leftIndex !== -1) {
+                  const leftSpacing = levelWidth / (leftLevel.length + 1)
+                  const leftX = 50 + leftSpacing * (leftIndex + 1)
+                  const leftY = startY + (maxLevel - node.left.level) * levelHeight
+                  
+                  connections.push(
+                    <line
+                      key={`${node.id}-left`}
+                      x1={x}
+                      y1={y + nodeHeight / 2}
+                      x2={leftX}
+                      y2={leftY - nodeHeight / 2}
+                      stroke={merklePath.some(step => step.hash === node.hash || step.hash === node.left?.hash) ? '#0a84ff' : '#6b7280'}
+                      strokeWidth={merklePath.some(step => step.hash === node.hash || step.hash === node.left?.hash) ? 2 : 1}
+                    />
+                  )
+                }
               }
               
-              if (node.right && node.right !== node.left) {
+              if (node.right && node.right !== node.left && (!showPathOnly || pathNodes.has(node.right.id))) {
                 const rightLevel = nodesByLevel[node.right.level]
                 const rightIndex = rightLevel.indexOf(node.right)
-                const rightSpacing = levelWidth / (rightLevel.length + 1)
-                const rightX = 50 + rightSpacing * (rightIndex + 1)
-                const rightY = startY + (maxLevel - node.right.level) * levelHeight
-                
-                connections.push(
-                  <line
-                    key={`${node.id}-right`}
-                    x1={x}
-                    y1={y + nodeHeight / 2}
-                    x2={rightX}
-                    y2={rightY - nodeHeight / 2}
-                    stroke={merklePath.some(step => step.hash === node.hash || step.hash === node.right?.hash) ? '#0a84ff' : '#6b7280'}
-                    strokeWidth={merklePath.some(step => step.hash === node.hash || step.hash === node.right?.hash) ? 2 : 1}
-                  />
-                )
+                if (rightIndex !== -1) {
+                  const rightSpacing = levelWidth / (rightLevel.length + 1)
+                  const rightX = 50 + rightSpacing * (rightIndex + 1)
+                  const rightY = startY + (maxLevel - node.right.level) * levelHeight
+                  
+                  connections.push(
+                    <line
+                      key={`${node.id}-right`}
+                      x1={x}
+                      y1={y + nodeHeight / 2}
+                      x2={rightX}
+                      y2={rightY - nodeHeight / 2}
+                      stroke={merklePath.some(step => step.hash === node.hash || step.hash === node.right?.hash) ? '#0a84ff' : '#6b7280'}
+                      strokeWidth={merklePath.some(step => step.hash === node.hash || step.hash === node.right?.hash) ? 2 : 1}
+                    />
+                  )
+                }
               }
               
               return connections
@@ -406,7 +523,7 @@ export default function MerkleTreeVisualizer() {
         </div>
 
         {activeTab === 'input' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
               <label className="block text-white text-sm font-medium mb-2">
                 Enter data (one item per line):
@@ -438,6 +555,92 @@ export default function MerkleTreeVisualizer() {
             >
               Build Merkle Tree
             </button>
+
+            {/* Block Data Section */}
+            <div className="border-t border-gray-700 pt-6">
+              <h3 className="text-lg font-semibold text-white mb-4">Load Block Data from WhatsOnChain</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-white text-sm font-medium mb-2">
+                    Block Height or Hash:
+                  </label>
+                  <input
+                    type="text"
+                    value={blockInput}
+                    onChange={(e) => setBlockInput(e.target.value)}
+                    placeholder="Enter block height (e.g., 575191) or block hash"
+                    className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white"
+                  />
+                </div>
+                
+                {blockError && (
+                  <div className="p-3 bg-red-900/20 border border-red-700 rounded-lg text-red-400 text-sm">
+                    {blockError}
+                  </div>
+                )}
+                
+                <button
+                  onClick={loadBlockData}
+                  disabled={!blockInput.trim() || loadingBlock}
+                  className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg"
+                >
+                  {loadingBlock && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  )}
+                  Load Block Transactions
+                </button>
+                
+                <div className="text-sm text-gray-400 space-y-2">
+                  <p>
+                    This will fetch all transaction IDs from the specified block and create a Merkle tree visualization.
+                    You can enter either a block height (number) or a block hash.
+                  </p>
+                  <p>
+                    <span className="font-medium">Current network:</span> {network === 'main' ? 'Mainnet' : 'Testnet'}
+                  </p>
+                  <p>
+                    <span className="font-medium">Sample block heights:</span>{' '}
+                    {network === 'main' ? (
+                      <span>
+                        <button 
+                          onClick={() => setBlockInput('575191')}
+                          className="text-blue-400 hover:text-blue-300 underline mx-1"
+                        >
+                          575191
+                        </button>
+                        <button 
+                          onClick={() => setBlockInput('700000')}
+                          className="text-blue-400 hover:text-blue-300 underline mx-1"
+                        >
+                          700000
+                        </button>
+                        <button 
+                          onClick={() => setBlockInput('800000')}
+                          className="text-blue-400 hover:text-blue-300 underline mx-1"
+                        >
+                          800000
+                        </button>
+                      </span>
+                    ) : (
+                      <span>
+                        <button 
+                          onClick={() => setBlockInput('1400000')}
+                          className="text-blue-400 hover:text-blue-300 underline mx-1"
+                        >
+                          1400000
+                        </button>
+                        <button 
+                          onClick={() => setBlockInput('1500000')}
+                          className="text-blue-400 hover:text-blue-300 underline mx-1"
+                        >
+                          1500000
+                        </button>
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -449,21 +652,55 @@ export default function MerkleTreeVisualizer() {
                   <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-semibold text-white">Merkle Root Hash</h3>
-                      <button
-                        onClick={() => copyToClipboard(tree.hash)}
-                        className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
-                        title="Copy root hash to clipboard"
-                      >
-                        📋 Copy Root
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {selectedLeaf && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setShowPathOnly(!showPathOnly)}
+                              className={`px-3 py-1 text-xs rounded transition-colors ${
+                                showPathOnly 
+                                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                  : 'bg-gray-700 hover:bg-gray-600 text-white'
+                              }`}
+                              title={showPathOnly ? 'Show full tree' : 'Show merkle path only'}
+                            >
+                              {showPathOnly ? '🌳 Full Tree' : '🎯 Path Only'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedLeaf(null)
+                                setMerklePath([])
+                                setShowPathOnly(false)
+                                setPathNodes(new Set())
+                              }}
+                              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                              title="Reset selection"
+                            >
+                              🔄 Reset
+                            </button>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => copyToClipboard(tree.hash)}
+                          className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                          title="Copy root hash to clipboard"
+                        >
+                          📋 Copy Root
+                        </button>
+                      </div>
                     </div>
                     <div className="p-3 bg-gray-900 rounded border">
                       <p className="font-mono text-sm text-blue-400 break-all leading-relaxed">{tree.hash}</p>
                     </div>
+                    {showPathOnly && selectedLeaf && (
+                      <div className="mt-3 p-2 bg-blue-900/20 border border-blue-500/30 rounded text-sm text-blue-300">
+                        🎯 Showing merkle path for selected transaction: {selectedLeaf.replace('leaf-', '')}
+                      </div>
+                    )}
                   </div>
                 )}
                 <p className="text-gray-300 mb-4">
-                  Click on any leaf node (bottom row) to see its Merkle path proof.
+                  Click on any leaf node (bottom row) to see its Merkle path proof and focus view on the relevant nodes.
                 </p>
                 {renderTree()}
                 
