@@ -1,7 +1,7 @@
 'use client';
 
 import { Beef } from '@bsv/sdk';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { whatsOnChainService, Network } from '../services/whatsonchain';
 
 interface BumpData {
@@ -56,14 +56,23 @@ interface ParsedBEEF {
   raw: string;
 }
 
-export default function BEEFParser() {
+interface BEEFParserProps {
+  network: Network;
+  onNetworkChange: (network: Network) => void;
+}
+
+export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps) {
   const [beefData, setBeefData] = useState<string>('');
   const [parsedBEEF, setParsedBEEF] = useState<ParsedBEEF | null>(null);
   const [error, setError] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'overview' | 'bumps' | 'transactions'>('overview');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['overview']));
-  const [network, setNetwork] = useState<Network>('main');
   const [validatingBumps, setValidatingBumps] = useState<Set<number>>(new Set());
+
+  // Sync network with WhatsOnChain service
+  useEffect(() => {
+    whatsOnChainService.setNetwork(network);
+  }, [network]);
 
   const toggleSection = (section: string) => {
     const newExpanded = new Set(expandedSections);
@@ -156,7 +165,7 @@ export default function BEEFParser() {
   };
 
   const handleNetworkChange = (newNetwork: Network) => {
-    setNetwork(newNetwork);
+    onNetworkChange(newNetwork);
     whatsOnChainService.setNetwork(newNetwork);
     // Reset validation states when network changes
     if (parsedBEEF) {
@@ -263,36 +272,6 @@ export default function BEEFParser() {
       </div>
 
       <div className="bg-[#0f172a] rounded-lg p-6 mb-6">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-[#d1d5db] mb-2">
-              Network
-            </label>
-            <div className="flex bg-gray-800 rounded-lg p-1">
-              <button
-                onClick={() => handleNetworkChange('main')}
-                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  network === 'main'
-                    ? 'bg-[#0a84ff] text-white'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                Mainnet
-              </button>
-              <button
-                onClick={() => handleNetworkChange('test')}
-                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  network === 'test'
-                    ? 'bg-[#0a84ff] text-white'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                Testnet
-              </button>
-            </div>
-          </div>
-        </div>
-        
         <div className="mb-6">
           <label className="block text-sm font-medium text-[#d1d5db] mb-2">
             BEEF Transaction Hex Data
