@@ -68,6 +68,7 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
   const [activeTab, setActiveTab] = useState<'overview' | 'bumps' | 'transactions'>('overview');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['overview']));
   const [validatingBumps, setValidatingBumps] = useState<Set<number>>(new Set());
+  const [isParserCollapsed, setIsParserCollapsed] = useState<boolean>(false);
 
   // Sync network with WhatsOnChain service
   useEffect(() => {
@@ -158,6 +159,7 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
       setError('');
       const parsed = parseBEEF(beefData);
       setParsedBEEF(parsed);
+      // Panel will auto-collapse via useEffect
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown parsing error');
       setParsedBEEF(null);
@@ -176,6 +178,17 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
       setParsedBEEF({ ...parsedBEEF, bumps: updatedBumps });
     }
   };
+
+  // Reset to expanded state when new data is loaded
+  useEffect(() => {
+    if (parsedBEEF) {
+      // Small delay to ensure smooth animation
+      const timer = setTimeout(() => {
+        setIsParserCollapsed(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [parsedBEEF]);
 
   const validateBump = async (bumpIndex: number) => {
     if (!parsedBEEF) return;
@@ -258,6 +271,10 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
     return `${satoshis.toLocaleString()} sat (${(satoshis / 100000000).toFixed(8)} BSV)`;
   };
 
+  const toggleParserCollapse = () => {
+    setIsParserCollapsed(!isParserCollapsed);
+  };
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -271,46 +288,80 @@ export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps
         </p>
       </div>
 
-      <div className="bg-[#0f172a] rounded-lg p-6 mb-6">
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-[#d1d5db] mb-2">
-            BEEF Transaction Hex Data
-          </label>
-          <textarea
-            value={beefData}
-            onChange={(e) => setBeefData(e.target.value)}
-            placeholder="Paste your BEEF transaction hex data here..."
-            className="w-full h-32 p-3 bg-gray-800 border border-gray-700 rounded-lg font-mono text-sm text-white placeholder-gray-400 focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent resize-none"
-          />
-          <div className="flex gap-2 mt-3">
+      <div className="bg-[#0f172a] rounded-lg overflow-hidden mb-6 transition-all duration-500 ease-in-out">
+        {/* Collapse/Expand Header */}
+        {parsedBEEF && (
+          <div className="flex items-center justify-between p-4 bg-gray-800/50 border-b border-gray-700">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-white">BEEF Parser</span>
+              <span className="text-xs text-gray-400">
+                {isParserCollapsed ? 'Collapsed' : 'Expanded'}
+              </span>
+            </div>
             <button
-              onClick={handleParseBEEF}
-              disabled={!beefData.trim()}
-              className="flex items-center gap-2 px-4 py-2 bg-[#0a84ff] text-white rounded-lg hover:bg-[#3ea6ff] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              onClick={toggleParserCollapse}
+              className="flex items-center gap-2 px-3 py-1 text-sm text-[#0a84ff] hover:text-[#3ea6ff] transition-colors"
             >
-              Parse BEEF
+              {isParserCollapsed ? 'Expand' : 'Collapse'}
+              <span className={`transform transition-transform duration-300 ${isParserCollapsed ? 'rotate-180' : 'rotate-0'}`}>
+                ▼
+              </span>
             </button>
-            <button
-              onClick={() => {
-                const sampleBEEF = "0100beef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000000";
-                setBeefData(sampleBEEF);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              Load Sample
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-900/20 border border-red-700 rounded-lg flex items-center gap-2">
-            <span className="text-red-400">{error}</span>
           </div>
         )}
+        
+        {/* Collapsible Content */}
+        <div 
+          className={`transition-all duration-500 ease-in-out overflow-hidden ${
+            isParserCollapsed ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'
+          }`}
+          style={{
+            transform: isParserCollapsed ? 'translate3d(0, -10px, 0)' : 'translate3d(0, 0, 0)',
+            willChange: 'transform, opacity, max-height',
+          }}
+        >
+          <div className="p-6">
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-[#d1d5db] mb-2">
+                BEEF Transaction Hex Data
+              </label>
+              <textarea
+                value={beefData}
+                onChange={(e) => setBeefData(e.target.value)}
+                placeholder="Paste your BEEF transaction hex data here..."
+                className="w-full h-32 p-3 bg-gray-800 border border-gray-700 rounded-lg font-mono text-sm text-white placeholder-gray-400 focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent resize-none transition-all duration-200"
+              />
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={handleParseBEEF}
+                  disabled={!beefData.trim()}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#0a84ff] text-white rounded-lg hover:bg-[#3ea6ff] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
+                >
+                  Parse BEEF
+                </button>
+                <button
+                  onClick={() => {
+                    const sampleBEEF = "0100beef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000000";
+                    setBeefData(sampleBEEF);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
+                >
+                  Load Sample
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="mb-6 p-4 bg-red-900/20 border border-red-700 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                <span className="text-red-400">{error}</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {parsedBEEF && (
-        <div className="bg-[#0f172a] rounded-lg overflow-hidden">
+        <div className="bg-[#0f172a] rounded-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="border-b border-gray-800">
             <nav className="flex">
               {[
