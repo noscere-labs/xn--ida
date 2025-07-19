@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import BEEFParser from '../components/BEEFParser';
+import MerkleTreeVisualizer from '../components/MerkleTreeVisualizer';
+import Footer from '../components/Footer';
+import Header from '../components/Header';
 
 interface Tool {
   id: string;
@@ -15,48 +18,22 @@ const tools: Tool[] = [
   {
     id: 'beef-parser',
     name: 'BEEF Parser',
-    description: 'Parse and analyze BEEF (Bitcoin Extended Format) transactions',
+    description: 'Parse and analyze BEEF transactions',
     icon: '🥩'
-  },
-  {
-    id: 'tx-builder',
-    name: 'Transaction Builder',
-    description: 'Build and construct Bitcoin SV transactions',
-    icon: '🔨',
-    comingSoon: true
-  },
-  {
-    id: 'script-debugger',
-    name: 'Script Debugger',
-    description: 'Debug and analyze Bitcoin scripts',
-    icon: '🐛',
-    comingSoon: true
-  },
-  {
-    id: 'key-generator',
-    name: 'Key Generator',
-    description: 'Generate Bitcoin keys and addresses',
-    icon: '🔑',
-    comingSoon: true
   },
   {
     id: 'merkle-tree',
     name: 'Merkle Tree Visualizer',
     description: 'Visualize and verify Merkle tree structures',
-    icon: '🌳',
-    comingSoon: true
-  },
-  {
-    id: 'network-monitor',
-    name: 'Network Monitor',
-    description: 'Monitor Bitcoin SV network activity',
-    icon: '📊',
-    comingSoon: true
+    icon: '🌳'
   }
 ];
 
+import { Network } from '../services/whatsonchain';
+
 export default function Home() {
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
+  const [network, setNetwork] = useState<Network>('main');
 
   const handleToolSelect = (toolId: string) => {
     const tool = tools.find(t => t.id === toolId);
@@ -73,56 +50,53 @@ export default function Home() {
   if (selectedTool === 'beef-parser') {
     return (
       <div className="min-h-screen bg-black text-white font-sans">
-        <header className="sticky top-0 z-10 bg-[#0f172a] backdrop-blur-sm border-b border-gray-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={handleBackToHome}
-                  className="text-[#0a84ff] hover:text-[#3ea6ff] transition-colors"
-                >
-                  ← Back
-                </button>
-                <h1 className="text-xl font-bold tracking-tight uppercase">NOSCERE</h1>
-              </div>
-              <nav className="flex space-x-8">
-                <a href="#" className="text-white hover:text-[#0a84ff] transition-colors">Tools</a>
-                <a href="#" className="text-white hover:text-[#0a84ff] transition-colors">About</a>
-              </nav>
-            </div>
-          </div>
-        </header>
+        <Header 
+          breadcrumbs={[
+            {
+              label: 'Tools',
+              href: '#',
+              onClick: handleBackToHome
+            },
+            { label: 'BEEF Parser' }
+          ]}
+          showNetworkToggle={true}
+          network={network}
+          onNetworkChange={setNetwork}
+        />
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <BEEFParser />
+          <BEEFParser network={network} onNetworkChange={setNetwork} />
         </main>
 
-        <footer className="bg-[#0f172a] border-t border-gray-800 mt-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="text-center">
-              <p className="text-gray-400">© 2024 NOSCERE. All rights reserved.</p>
-            </div>
-          </div>
-        </footer>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (selectedTool === 'merkle-tree') {
+    return (
+      <div className="min-h-screen bg-black text-white font-sans">
+        <Header breadcrumbs={[
+          {
+            label: 'Tools',
+            href: '#',
+            onClick: handleBackToHome
+          },
+          { label: 'Merkle Tree Visualizer' }
+        ]} />
+
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <MerkleTreeVisualizer />
+        </main>
+
+        <Footer />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-black text-white font-sans">
-      <header className="sticky top-0 z-10 bg-[#0f172a] backdrop-blur-sm border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold tracking-tight uppercase">NOSCERE</h1>
-            </div>
-            <nav className="flex space-x-8">
-              <a href="#" className="text-white hover:text-[#0a84ff] transition-colors">Tools</a>
-              <a href="#" className="text-white hover:text-[#0a84ff] transition-colors">About</a>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <Header />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
@@ -145,11 +119,10 @@ export default function Home() {
             <div
               key={tool.id}
               onClick={() => handleToolSelect(tool.id)}
-              className={`bg-[#0f172a] border border-gray-700 rounded-lg p-6 transition-all duration-300 ${
-                tool.comingSoon 
-                  ? 'opacity-50 cursor-not-allowed' 
-                  : 'hover:border-[#0a84ff] hover:bg-[#0a84ff]/5 cursor-pointer hover:scale-[1.02]'
-              }`}
+              className={`bg-[#0f172a] border border-gray-700 rounded-lg p-6 transition-all duration-300 ${tool.comingSoon
+                ? 'opacity-50 cursor-not-allowed'
+                : 'hover:border-[#0a84ff] hover:bg-[#0a84ff]/5 cursor-pointer hover:scale-[1.02]'
+                }`}
             >
               <div className="flex flex-col items-center text-center space-y-4">
                 <div className="text-4xl">{tool.icon}</div>
@@ -168,13 +141,7 @@ export default function Home() {
         </div>
       </main>
 
-      <footer className="bg-[#0f172a] border-t border-gray-800 mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <p className="text-gray-400">© 2024 NOSCERE. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

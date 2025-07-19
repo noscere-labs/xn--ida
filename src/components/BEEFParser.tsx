@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
 import { Beef } from '@bsv/sdk';
+import { useCallback, useEffect, useState } from 'react';
+import { Network, whatsOnChainService } from '../services/whatsonchain';
 
 interface BumpData {
   blockHeight: number;
@@ -13,6 +14,15 @@ interface BumpData {
     isDuplicate: boolean;
     isClientTxid: boolean;
   }[]>;
+  validation?: {
+    isValidating: boolean;
+    isValid?: boolean;
+    blockHash?: string;
+    merkleRoot?: string;
+    error?: string;
+    validTransactions: string[];
+    invalidTransactions: string[];
+  };
 }
 
 interface ParsedTransaction {
@@ -46,12 +56,24 @@ interface ParsedBEEF {
   raw: string;
 }
 
-export default function BEEFParser() {
+interface BEEFParserProps {
+  network: Network;
+  onNetworkChange: (network: Network) => void;
+}
+
+export default function BEEFParser({ network, onNetworkChange }: BEEFParserProps) {
   const [beefData, setBeefData] = useState<string>('');
   const [parsedBEEF, setParsedBEEF] = useState<ParsedBEEF | null>(null);
   const [error, setError] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'overview' | 'bumps' | 'transactions'>('overview');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['overview']));
+  const [validatingBumps, setValidatingBumps] = useState<Set<number>>(new Set());
+  const [isParserCollapsed, setIsParserCollapsed] = useState<boolean>(false);
+
+  // Sync network with WhatsOnChain service
+  useEffect(() => {
+    whatsOnChainService.setNetwork(network);
+  }, [network]);
 
   const toggleSection = (section: string) => {
     const newExpanded = new Set(expandedSections);
@@ -67,7 +89,7 @@ export default function BEEFParser() {
     try {
       const cleanHex = hexData.replace(/\s/g, '');
       const beef = Beef.fromString(cleanHex, 'hex');
-      
+
       const bumps: BumpData[] = beef.bumps.map(bump => ({
         blockHeight: bump.blockHeight,
         treeHeight: bump.path.length,
@@ -137,9 +159,107 @@ export default function BEEFParser() {
       setError('');
       const parsed = parseBEEF(beefData);
       setParsedBEEF(parsed);
+      // Panel will auto-collapse via useEffect
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown parsing error');
       setParsedBEEF(null);
+    }
+  };
+
+  const handleNetworkChange = (newNetwork: Network) => {
+    onNetworkChange(newNetwork);
+    whatsOnChainService.setNetwork(newNetwork);
+    // Reset validation states when network changes
+    if (parsedBEEF) {
+      const updatedBumps = parsedBEEF.bumps.map(bump => ({
+        ...bump,
+        validation: undefined
+      }));
+      setParsedBEEF({ ...parsedBEEF, bumps: updatedBumps });
+    }
+  };
+
+  // Reset to expanded state when new data is loaded
+  useEffect(() => {
+    if (parsedBEEF) {
+      // Small delay to ensure smooth animation
+      const timer = setTimeout(() => {
+        setIsParserCollapsed(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [parsedBEEF]);
+
+  const validateBump = async (bumpIndex: number) => {
+    if (!parsedBEEF) return;
+
+    const bump = parsedBEEF.bumps[bumpIndex];
+    if (!bump || validatingBumps.has(bumpIndex)) return;
+
+    // Set validating state
+    setValidatingBumps(prev => new Set([...prev, bumpIndex]));
+
+    // Update bump validation state to show loading
+    const updatedBumps = [...parsedBEEF.bumps];
+    updatedBumps[bumpIndex] = {
+      ...bump,
+      validation: {
+        isValidating: true,
+        validTransactions: [],
+        invalidTransactions: []
+      }
+    };
+    setParsedBEEF({ ...parsedBEEF, bumps: updatedBumps });
+
+    try {
+      // Get transaction IDs that have this bump
+      const txidsWithBump = parsedBEEF.transactions
+        .filter(tx => tx.bumpIndex === bumpIndex)
+        .map(tx => tx.txid);
+
+      // Validate the bump data against the blockchain
+      const validationResult = await whatsOnChainService.validateBumpData(
+        bump.blockHeight,
+        txidsWithBump
+      );
+
+      // Update the bump with validation results
+      updatedBumps[bumpIndex] = {
+        ...bump,
+        validation: {
+          isValidating: false,
+          isValid: validationResult.isValid,
+          blockHash: validationResult.blockHash,
+          merkleRoot: validationResult.merkleRoot,
+          error: validationResult.error,
+          validTransactions: validationResult.validTransactions,
+          invalidTransactions: validationResult.invalidTransactions
+        }
+      };
+
+      setParsedBEEF({ ...parsedBEEF, bumps: updatedBumps });
+
+    } catch (error) {
+      // Handle validation error
+      updatedBumps[bumpIndex] = {
+        ...bump,
+        validation: {
+          isValidating: false,
+          isValid: false,
+          error: error instanceof Error ? error.message : 'Unknown validation error',
+          validTransactions: [],
+          invalidTransactions: parsedBEEF.transactions
+            .filter(tx => tx.bumpIndex === bumpIndex)
+            .map(tx => tx.txid)
+        }
+      };
+      setParsedBEEF({ ...parsedBEEF, bumps: updatedBumps });
+    } finally {
+      setValidatingBumps(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(bumpIndex);
+        return newSet;
+      });
     }
   };
 
@@ -147,67 +267,118 @@ export default function BEEFParser() {
     navigator.clipboard.writeText(text);
   };
 
+  const HashDisplay = ({ hash, label }: { hash: string; label?: string }) => (
+    <div className="group">
+      <div className="flex items-center justify-between mb-1">
+        {label && <span className="text-xs font-medium text-gray-400">{label}:</span>}
+        <button
+          onClick={() => copyToClipboard(hash)}
+          className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-all"
+          title="Copy to clipboard"
+        >
+          📋 Copy
+        </button>
+      </div>
+      <div className="p-2 bg-gray-900 rounded border font-mono text-xs text-blue-400 break-all leading-relaxed">
+        {hash}
+      </div>
+    </div>
+  );
+
   const formatSatoshis = (satoshis: number): string => {
     return `${satoshis.toLocaleString()} sat (${(satoshis / 100000000).toFixed(8)} BSV)`;
+  };
+
+  const toggleParserCollapse = () => {
+    setIsParserCollapsed(!isParserCollapsed);
   };
 
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h1 className="text-4xl sm:text-5xl font-bold mb-4">
+        <h1 className="text-4xl sm:text-4xl font-bold mb-4">
           <span className="bg-gradient-to-r from-[#0a84ff] to-[#a855f7] bg-clip-text text-transparent">
-            BEEF Transaction
-          </span>
-          <br />
-          <span className="bg-gradient-to-r from-[#0a84ff] to-[#a855f7] bg-clip-text text-transparent">
-            Parser
+            BEEF Parser
           </span>
         </h1>
-        <p className="text-xl text-[#d1d5db] max-w-2xl mx-auto">
-          Parse and analyze BEEF (Bitcoin Extended Format) transactions
+        <p className="text-xl text-[#d1d5db] max-w-3xl mx-auto">
+          Parse and analyze BEEF (Background Evaluation Extended Format) transactions
         </p>
       </div>
 
-      <div className="bg-[#0f172a] rounded-lg p-6 mb-6">
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-[#d1d5db] mb-2">
-            BEEF Transaction Hex Data
-          </label>
-          <textarea
-            value={beefData}
-            onChange={(e) => setBeefData(e.target.value)}
-            placeholder="Paste your BEEF transaction hex data here..."
-            className="w-full h-32 p-3 bg-gray-800 border border-gray-700 rounded-lg font-mono text-sm text-white placeholder-gray-400 focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent resize-none"
-          />
-          <div className="flex gap-2 mt-3">
+      <div className="bg-[#0f172a] rounded-lg overflow-hidden mb-6 transition-all duration-500 ease-in-out">
+        {/* Collapse/Expand Header */}
+        {parsedBEEF && (
+          <div className="flex items-center justify-between p-4 bg-gray-800/50 border-b border-gray-700">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-white">BEEF Parser</span>
+              <span className="text-xs text-gray-400">
+                {isParserCollapsed ? 'Collapsed' : 'Expanded'}
+              </span>
+            </div>
             <button
-              onClick={handleParseBEEF}
-              disabled={!beefData.trim()}
-              className="flex items-center gap-2 px-4 py-2 bg-[#0a84ff] text-white rounded-lg hover:bg-[#3ea6ff] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              onClick={toggleParserCollapse}
+              className="flex items-center gap-2 px-3 py-1 text-sm text-[#0a84ff] hover:text-[#3ea6ff] transition-colors"
             >
-              Parse BEEF
+              {isParserCollapsed ? 'Expand' : 'Collapse'}
+              <span className={`transform transition-transform duration-300 ${isParserCollapsed ? 'rotate-180' : 'rotate-0'}`}>
+                ▼
+              </span>
             </button>
-            <button
-              onClick={() => {
-                const sampleBEEF = "0100beef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000000";
-                setBeefData(sampleBEEF);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              Load Sample
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-900/20 border border-red-700 rounded-lg flex items-center gap-2">
-            <span className="text-red-400">{error}</span>
           </div>
         )}
+
+        {/* Collapsible Content */}
+        <div
+          className={`transition-all duration-500 ease-in-out overflow-hidden ${isParserCollapsed ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'
+            }`}
+          style={{
+            transform: isParserCollapsed ? 'translate3d(0, -10px, 0)' : 'translate3d(0, 0, 0)',
+            willChange: 'transform, opacity, max-height',
+          }}
+        >
+          <div className="p-6">
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-[#d1d5db] mb-2">
+                BEEF Transaction Hex Data
+              </label>
+              <textarea
+                value={beefData}
+                onChange={(e) => setBeefData(e.target.value)}
+                placeholder="Paste your BEEF transaction hex data here..."
+                className="w-full h-32 p-3 bg-gray-800 border border-gray-700 rounded-lg font-mono text-sm text-white placeholder-gray-400 focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent resize-none transition-all duration-200"
+              />
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={handleParseBEEF}
+                  disabled={!beefData.trim()}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#0a84ff] text-white rounded-lg hover:bg-[#3ea6ff] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
+                >
+                  Parse BEEF
+                </button>
+                <button
+                  onClick={() => {
+                    const sampleBEEF = "0100beef01fe636d0c0007021400fe507c0c7aa754cef1f7889d5fd395cf1f785dd7de98eed895dbedfe4e5bc70d1502ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e010b00bc4ff395efd11719b277694cface5aa50d085a0bb81f613f70313acd28cf4557010400574b2d9142b8d28b61d88e3b2c3f44d858411356b49a28a4643b6d1a6a092a5201030051a05fc84d531b5d250c23f4f886f6812f9fe3f402d61607f977b4ecd2701c19010000fd781529d58fc2523cf396a7f25440b409857e7e221766c57214b1d38c7b481f01010062f542f45ea3660f86c013ced80534cb5fd4c19d66c56e7e8c5d4bf2d40acc5e010100b121e91836fd7cd5102b654e9f72f3cf6fdbfd0b161c53a9c54b12c841126331020100000001cd4e4cac3c7b56920d1e7655e7e260d31f29d9a388d04910f1bbd72304a79029010000006b483045022100e75279a205a547c445719420aa3138bf14743e3f42618e5f86a19bde14bb95f7022064777d34776b05d816daf1699493fcdf2ef5a5ab1ad710d9c97bfb5b8f7cef3641210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013e660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000001000100000001ac4e164f5bc16746bb0868404292ac8318bbac3800e4aad13a014da427adce3e000000006a47304402203a61a2e931612b4bda08d541cfb980885173b8dcf64a3471238ae7abcd368d6402204cbf24f04b9aa2256d8901f0ed97866603d2be8324c2bfb7a37bf8fc90edd5b441210263e2dee22b1ddc5e11f6fab8bcd2378bdd19580d640501ea956ec0e786f93e76ffffffff013c660000000000001976a9146bfd5c7fbe21529d45803dbcf0c87dd3c71efbc288ac0000000000";
+                    setBeefData(sampleBEEF);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 transform hover:scale-105"
+                >
+                  Load Sample
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="mb-6 p-4 bg-red-900/20 border border-red-700 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                <span className="text-red-400">{error}</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {parsedBEEF && (
-        <div className="bg-[#0f172a] rounded-lg overflow-hidden">
+        <div className="bg-[#0f172a] rounded-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="border-b border-gray-800">
             <nav className="flex">
               {[
@@ -218,11 +389,10 @@ export default function BEEFParser() {
                 <button
                   key={id}
                   onClick={() => setActiveTab(id as typeof activeTab)}
-                  className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
-                    activeTab === id
-                      ? 'border-b-2 border-[#0a84ff] text-[#0a84ff] bg-[#0a84ff]/10'
-                      : 'text-[#d1d5db] hover:text-white hover:bg-gray-800/50'
-                  }`}
+                  className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${activeTab === id
+                    ? 'border-b-2 border-[#0a84ff] text-[#0a84ff] bg-[#0a84ff]/10'
+                    : 'text-[#d1d5db] hover:text-white hover:bg-gray-800/50'
+                    }`}
                 >
                   {label}
                 </button>
@@ -247,35 +417,38 @@ export default function BEEFParser() {
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="bg-green-500/10 border border-green-500/20 p-4 rounded-lg">
-                    <div className="font-medium mb-2">BUMP Proofs</div>
+
+                  <button
+                    onClick={() => setActiveTab('bumps')}
+                    className="bg-green-500/10 border border-green-500/20 p-4 rounded-lg text-left hover:bg-green-500/20 hover:border-green-500/30 transition-all duration-200 hover:scale-[1.02] cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">BUMP Proofs</span>
+                      <span className="text-xs text-green-400">Click to view →</span>
+                    </div>
                     <div className="text-2xl font-bold text-green-400">{parsedBEEF.bumps.length}</div>
-                    <div className="text-sm text-[#d1d5db]">Merkle proofs included</div>
-                  </div>
-                  
-                  <div className="bg-purple-500/10 border border-purple-500/20 p-4 rounded-lg">
-                    <div className="font-medium mb-2">Transactions</div>
+                    <div className="text-sm text-[#d1d5db]">
+                      {parsedBEEF.bumps.filter(b => b.validation?.isValid).length} validated, {parsedBEEF.bumps.length} total
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('transactions')}
+                    className="bg-purple-500/10 border border-purple-500/20 p-4 rounded-lg text-left hover:bg-purple-500/20 hover:border-purple-500/30 transition-all duration-200 hover:scale-[1.02] cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">Transactions</span>
+                      <span className="text-xs text-purple-400">Click to view →</span>
+                    </div>
                     <div className="text-2xl font-bold text-purple-400">{parsedBEEF.transactions.length}</div>
                     <div className="text-sm text-[#d1d5db]">
                       {parsedBEEF.transactions.filter(tx => tx.hasBump).length} with proofs
                     </div>
-                  </div>
+                  </button>
                 </div>
 
                 <div className="bg-gray-800/50 p-4 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium">Raw BEEF Data</span>
-                    <button
-                      onClick={() => copyToClipboard(parsedBEEF.raw)}
-                      className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded hover:bg-gray-600 transition-colors"
-                    >
-                      Copy
-                    </button>
-                  </div>
-                  <div className="font-mono text-xs text-[#d1d5db] break-all bg-gray-900 p-3 rounded border max-h-20 overflow-y-auto">
-                    {parsedBEEF.raw}
-                  </div>
+                  <HashDisplay hash={parsedBEEF.raw} label="Raw BEEF Data" />
                   <div className="text-sm text-gray-400 mt-2">
                     Total size: {parsedBEEF.totalSize.toLocaleString()} bytes
                   </div>
@@ -296,17 +469,51 @@ export default function BEEFParser() {
                         onClick={() => toggleSection(`bump-${index}`)}
                         className="w-full flex items-center justify-between p-4 bg-gray-800/50 hover:bg-gray-700/50 transition-colors"
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">BUMP {index + 1}</span>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            {bump.validation?.isValidating ? (
+                              <div className="w-4 h-4 border-2 border-[#0a84ff] border-t-transparent rounded-full animate-spin" />
+                            ) : bump.validation?.isValid === true ? (
+                              <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs">✓</span>
+                              </div>
+                            ) : bump.validation?.isValid === false ? (
+                              <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs">✗</span>
+                              </div>
+                            ) : (
+                              <div className="w-4 h-4 bg-gray-500 rounded-full" />
+                            )}
+                            <span className="font-medium">BUMP {index + 1}</span>
+                          </div>
                           <span className="text-sm text-[#d1d5db]">
                             Block: {bump.blockHeight}, Tree Height: {bump.treeHeight}
                           </span>
+                          {bump.validation?.blockHash && (
+                            <div className="text-xs text-green-400">
+                              Block Hash: {bump.validation.blockHash}
+                            </div>
+                          )}
                         </div>
-                        <div className="text-[#0a84ff]">
-                          {expandedSections.has(`bump-${index}`) ? '▼' : '▶'}
+                        <div className="flex items-center gap-2">
+                          {!bump.validation && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                validateBump(index);
+                              }}
+                              disabled={validatingBumps.has(index)}
+                              className="px-3 py-1 bg-[#0a84ff] text-white text-sm rounded hover:bg-[#3ea6ff] disabled:opacity-50 transition-colors"
+                            >
+                              Validate
+                            </button>
+                          )}
+                          <div className="text-[#0a84ff]">
+                            {expandedSections.has(`bump-${index}`) ? '▼' : '▶'}
+                          </div>
                         </div>
                       </button>
-                      
+
                       {expandedSections.has(`bump-${index}`) && (
                         <div className="p-4 space-y-4">
                           <div className="grid grid-cols-2 gap-4 text-sm">
@@ -317,7 +524,57 @@ export default function BEEFParser() {
                               <span className="font-medium">Tree Height:</span> {bump.treeHeight}
                             </div>
                           </div>
-                          
+
+                          {bump.validation && (
+                            <div className="border border-gray-600 rounded p-3 space-y-2">
+                              <h5 className="font-medium text-sm">Validation Results</h5>
+
+                              {bump.validation.isValidating ? (
+                                <div className="flex items-center gap-2 text-sm text-[#0a84ff]">
+                                  <div className="w-4 h-4 border-2 border-[#0a84ff] border-t-transparent rounded-full animate-spin" />
+                                  Validating against {network} network...
+                                </div>
+                              ) : (
+                                <>
+                                  <div className={`text-sm font-medium ${bump.validation.isValid ? 'text-green-400' : 'text-red-400'
+                                    }`}>
+                                    {bump.validation.isValid ? '✓ Valid BUMP proof' : '✗ Invalid BUMP proof'}
+                                  </div>
+
+                                  {bump.validation.blockHash && (
+                                    <div className="mt-2">
+                                      <HashDisplay hash={bump.validation.blockHash} label="Block Hash" />
+                                    </div>
+                                  )}
+
+                                  {bump.validation.merkleRoot && (
+                                    <div className="mt-2">
+                                      <HashDisplay hash={bump.validation.merkleRoot} label="Merkle Root" />
+                                    </div>
+                                  )}
+
+                                  {bump.validation.validTransactions.length > 0 && (
+                                    <div className="text-xs text-green-400">
+                                      <span className="font-medium">Valid Transactions:</span> {bump.validation.validTransactions.length}
+                                    </div>
+                                  )}
+
+                                  {bump.validation.invalidTransactions.length > 0 && (
+                                    <div className="text-xs text-red-400">
+                                      <span className="font-medium">Invalid Transactions:</span> {bump.validation.invalidTransactions.length}
+                                    </div>
+                                  )}
+
+                                  {bump.validation.error && (
+                                    <div className="text-xs text-red-400 bg-red-900/20 p-2 rounded">
+                                      {bump.validation.error}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          )}
+
                           <div>
                             <h4 className="font-medium mb-2">Merkle Path Levels</h4>
                             <div className="space-y-2">
@@ -326,20 +583,19 @@ export default function BEEFParser() {
                                   <div className="font-medium text-sm mb-2">Level {levelIndex} ({level.length} leaves)</div>
                                   <div className="grid gap-2">
                                     {level.map((leaf, leafIndex) => (
-                                      <div key={leafIndex} className="flex items-center gap-2 text-xs">
-                                        <span className="w-12 text-gray-400">#{leaf.offset}</span>
-                                        <span className={`px-2 py-1 rounded text-xs ${
-                                          leaf.isClientTxid ? 'bg-[#0a84ff]/20 text-[#0a84ff]' :
-                                          leaf.isDuplicate ? 'bg-yellow-500/20 text-yellow-400' :
-                                          'bg-gray-700 text-gray-300'
-                                        }`}>
-                                          {leaf.isClientTxid ? 'Client TXID' :
-                                           leaf.isDuplicate ? 'Duplicate' : 'Sibling'}
-                                        </span>
-                                        {leaf.hash && (
-                                          <span className="font-mono text-gray-400 truncate">
-                                            {leaf.hash.substring(0, 16)}...
+                                      <div key={leafIndex} className="border border-gray-600 rounded p-3 space-y-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-gray-400 text-xs font-medium">Offset #{leaf.offset}</span>
+                                          <span className={`px-2 py-1 rounded text-xs font-medium ${leaf.isClientTxid ? 'bg-[#0a84ff]/20 text-[#0a84ff]' :
+                                            leaf.isDuplicate ? 'bg-yellow-500/20 text-yellow-400' :
+                                              'bg-gray-700 text-gray-300'
+                                            }`}>
+                                            {leaf.isClientTxid ? 'Client TXID' :
+                                              leaf.isDuplicate ? 'Duplicate' : 'Sibling'}
                                           </span>
+                                        </div>
+                                        {leaf.hash && (
+                                          <HashDisplay hash={leaf.hash} />
                                         )}
                                       </div>
                                     ))}
@@ -366,10 +622,20 @@ export default function BEEFParser() {
                     >
                       <div className="flex items-center gap-2">
                         <span className="font-medium">Transaction {index + 1}</span>
-                        <span className="text-sm text-[#d1d5db] font-mono">{tx.txid.substring(0, 16)}...</span>
+                        <span className="text-sm text-[#d1d5db] font-mono">{tx.txid}</span>
                         {tx.hasBump && (
-                          <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">
-                            Has Proof
+                          <span className={`px-2 py-1 text-xs rounded ${parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === true
+                            ? 'bg-green-500/20 text-green-400'
+                            : parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === false
+                              ? 'bg-red-500/20 text-red-400'
+                              : 'bg-gray-500/20 text-gray-400'
+                            }`}>
+                            {parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === true
+                              ? '✓ Validated Proof'
+                              : parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === false
+                                ? '✗ Invalid Proof'
+                                : 'Has Proof'
+                            }
                           </span>
                         )}
                       </div>
@@ -377,15 +643,12 @@ export default function BEEFParser() {
                         {expandedSections.has(`tx-${index}`) ? '▼' : '▶'}
                       </div>
                     </button>
-                    
+
                     {expandedSections.has(`tx-${index}`) && (
                       <div className="p-4 space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="font-medium">Transaction ID:</span>
-                            <div className="font-mono text-xs bg-gray-900 p-2 rounded mt-1 break-all">
-                              {tx.txid}
-                            </div>
+                            <HashDisplay hash={tx.txid} label="Transaction ID" />
                           </div>
                           <div className="space-y-2">
                             <div><span className="font-medium">Version:</span> {tx.version}</div>
@@ -404,7 +667,9 @@ export default function BEEFParser() {
                                 <div key={inputIndex} className="bg-red-500/10 border border-red-500/20 p-3 rounded text-xs">
                                   <div className="font-medium mb-1">Input #{inputIndex}</div>
                                   <div className="space-y-1">
-                                    <div><span className="font-medium">Prev TX:</span> {input.prevTxHash.substring(0, 16)}...</div>
+                                    <div className="mt-2">
+                                      <HashDisplay hash={input.prevTxHash} label="Previous TX" />
+                                    </div>
                                     <div><span className="font-medium">Output:</span> {input.prevTxIndex}</div>
                                     <div><span className="font-medium">Script:</span> {input.scriptLength} bytes</div>
                                     <div><span className="font-medium">Sequence:</span> {input.sequence}</div>
@@ -424,8 +689,8 @@ export default function BEEFParser() {
                                     <div><span className="font-medium">Value:</span> {formatSatoshis(output.value)}</div>
                                     <div><span className="font-medium">Script:</span> {output.scriptLength} bytes</div>
                                     {output.script && (
-                                      <div className="font-mono bg-gray-900 p-1 rounded break-all">
-                                        {output.script.substring(0, 32)}...
+                                      <div className="mt-2">
+                                        <HashDisplay hash={output.script} label="Script" />
                                       </div>
                                     )}
                                   </div>
@@ -436,18 +701,7 @@ export default function BEEFParser() {
                         </div>
 
                         <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium">Raw Transaction</span>
-                            <button
-                              onClick={() => copyToClipboard(tx.rawHex)}
-                              className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded hover:bg-gray-600 transition-colors"
-                            >
-                              Copy
-                            </button>
-                          </div>
-                          <div className="font-mono text-xs text-[#d1d5db] break-all bg-gray-900 p-3 rounded max-h-32 overflow-y-auto">
-                            {tx.rawHex}
-                          </div>
+                          <HashDisplay hash={tx.rawHex} label="Raw Transaction" />
                         </div>
                       </div>
                     )}
