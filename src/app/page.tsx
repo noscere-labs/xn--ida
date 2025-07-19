@@ -49,7 +49,7 @@ export default function Home() {
 
   if (selectedTool === 'beef-parser') {
     return (
-      <div className="min-h-screen bg-black text-white font-sans">
+      <div className="min-h-screen bg-black text-white font-sans flex flex-col">
         <Header 
           breadcrumbs={[
             {
@@ -64,7 +64,7 @@ export default function Home() {
           onNetworkChange={setNetwork}
         />
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
           <BEEFParser network={network} />
         </main>
 
@@ -75,7 +75,7 @@ export default function Home() {
 
   if (selectedTool === 'merkle-tree') {
     return (
-      <div className="min-h-screen bg-black text-white font-sans">
+      <div className="min-h-screen bg-black text-white font-sans flex flex-col">
         <Header breadcrumbs={[
           {
             label: 'Tools',
@@ -85,7 +85,7 @@ export default function Home() {
           { label: 'Merkle Tree Visualizer' }
         ]} />
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
           <MerkleTreeVisualizer />
         </main>
 
@@ -95,10 +95,10 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans">
+    <div className="min-h-screen bg-black text-white font-sans flex flex-col">
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
         <div className="text-center mb-12">
           <h1 className="text-4xl sm:text-5xl font-bold mb-4">
             <span className="bg-gradient-to-r from-[#0a84ff] to-[#a855f7] bg-clip-text text-transparent">
