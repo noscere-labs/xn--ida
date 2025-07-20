@@ -113,7 +113,7 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
         const lastNode = currentLevel[currentLevel.length - 1]
         currentLevel.push({
           ...lastNode,
-          id: `${lastNode.id}-dup`,
+          id: `${lastNode.id}-dup-level-${level}`,
         })
       }
 
