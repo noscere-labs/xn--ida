@@ -298,9 +298,15 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
 
       // Build merkle tree from transaction IDs
       const merkleTree = await buildMerkleTree(blockData.tx)
+      
+      // Reset all visualization state for clean rendering
       setTree(merkleTree)
       setSelectedLeaf(null)
       setMerklePath([])
+      setProofSteps([])
+      setPathNodes(new Set())
+      setShowPathOnly(false)
+      setCalculatingSteps(false)
       setActiveTab('visualization')
 
     } catch (error) {
@@ -322,8 +328,8 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     setPathNodes(pathNodeIds)
     setShowPathOnly(true)
 
-    // Switch to merkle path tab when a leaf is clicked
-    setActiveTab('merklepath')
+    // Scroll to top of page when a leaf is clicked
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const copyToClipboard = (text: string) => {
@@ -532,17 +538,21 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     const getAllNodes = (node: TreeNode): TreeNode[] => {
       const nodes = [node]
       if (node.left) nodes.push(...getAllNodes(node.left))
-      if (node.right) nodes.push(...getAllNodes(node.right))
+      if (node.right && node.right !== node.left) nodes.push(...getAllNodes(node.right))
       return nodes
     }
 
     const allNodes = getAllNodes(tree)
-    const maxLevel = Math.max(...allNodes.map(n => n.level))
+    // Remove duplicates by ID (in case of issues with duplication logic)
+    const uniqueNodes = allNodes.filter((node, index, self) => 
+      self.findIndex(n => n.id === node.id) === index
+    )
+    const maxLevel = Math.max(...uniqueNodes.map(n => n.level))
 
     // Filter nodes based on view mode
     const filteredNodes = showPathOnly
-      ? allNodes.filter(node => pathNodes.has(node.id))
-      : allNodes
+      ? uniqueNodes.filter(node => pathNodes.has(node.id))
+      : uniqueNodes
 
     const nodesByLevel = Array.from({ length: maxLevel + 1 }, () => [] as TreeNode[])
     filteredNodes.forEach(node => nodesByLevel[node.level].push(node))
@@ -561,15 +571,18 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     )
 
     const svgWidth = calculatedWidth
-    const svgHeight = Math.max(800, maxLevel * levelHeight + nodeHeight + 200)
-
-    // Center the tree vertically by calculating total height needed
+    
+    // Calculate minimal height needed for the tree with appropriate padding
     const totalTreeHeight = maxLevel * levelHeight + nodeHeight
-    const startY = (svgHeight - totalTreeHeight) / 2 + nodeHeight / 2
+    const verticalPadding = 60 // Reduced padding
+    const svgHeight = totalTreeHeight + (verticalPadding * 2)
+    
+    // Start the tree with minimal top padding
+    const startY = verticalPadding + nodeHeight / 2
 
     return (
-      <div className="overflow-auto border border-gray-700 rounded-lg bg-gray-900" style={{ maxHeight: '80vh' }}>
-        <svg width={svgWidth} height={svgHeight} className="bg-gray-900">
+      <div className="overflow-auto border border-gray-700 rounded-lg bg-black" style={{ maxHeight: '80vh', minHeight: 'auto' }}>
+        <svg width={svgWidth} height={svgHeight} className="bg-black block">
           {/* Render connections first (behind nodes) */}
           {nodesByLevel.map((levelNodes, level) => {
             const y = startY + (maxLevel - level) * levelHeight
@@ -624,7 +637,7 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
                 }
               }
 
-              return connections
+              return <g key={`connections-${node.id}`}>{connections}</g>
             })
           })}
 
