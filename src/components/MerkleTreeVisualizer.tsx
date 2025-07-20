@@ -93,11 +93,12 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
   }, [])
 
   const hashBinary = useCallback(async (leftHash: string, rightHash: string): Promise<string> => {
-    // Convert hex strings to binary data for concatenation
-    const leftBytes = new Uint8Array(leftHash.match(/.{2}/g)?.map(byte => parseInt(byte, 16)) || [])
-    const rightBytes = new Uint8Array(rightHash.match(/.{2}/g)?.map(byte => parseInt(byte, 16)) || [])
+    // Bitcoin-style hashing with endianness handling
+    // Convert hex strings to binary and reverse byte order (little-endian for internal processing)
+    const leftBytes = new Uint8Array(leftHash.match(/.{2}/g)?.map(byte => parseInt(byte, 16)).reverse() || [])
+    const rightBytes = new Uint8Array(rightHash.match(/.{2}/g)?.map(byte => parseInt(byte, 16)).reverse() || [])
     
-    // Concatenate binary data
+    // Concatenate: left || right
     const combined = new Uint8Array(leftBytes.length + rightBytes.length)
     combined.set(leftBytes, 0)
     combined.set(rightBytes, leftBytes.length)
@@ -106,7 +107,8 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     const firstHash = await crypto.subtle.digest('SHA-256', combined)
     const secondHash = await crypto.subtle.digest('SHA-256', firstHash)
     
-    const hashArray = Array.from(new Uint8Array(secondHash))
+    // Reverse bytes back to big-endian for display
+    const hashArray = Array.from(new Uint8Array(secondHash)).reverse()
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
   }, [])
 
@@ -131,23 +133,27 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     while (currentLevel.length > 1) {
       const nextLevel: TreeNode[] = []
       
+      // Handle odd number of elements by duplicating the last one (Bitcoin standard)
+      if (currentLevel.length % 2 === 1) {
+        const lastNode = currentLevel[currentLevel.length - 1]
+        currentLevel.push({
+          ...lastNode,
+          id: `${lastNode.id}-dup`,
+        })
+      }
+      
       for (let i = 0; i < currentLevel.length; i += 2) {
         const left = currentLevel[i]
-        let right = currentLevel[i + 1]
+        const right = currentLevel[i + 1]
         
-        // Bitcoin merkle tree: if odd number of nodes, duplicate the last one
-        if (!right) {
-          right = left
-        }
-        
-        // Use binary concatenation instead of string concatenation
+        // Use binary concatenation with proper endianness
         const combinedHash = await hashBinary(left.hash, right.hash)
         
         nextLevel.push({
           id: `node-${level}-${Math.floor(i / 2)}`,
           hash: combinedHash,
           left,
-          right: right !== left ? right : undefined,
+          right: right.id !== left.id ? right : undefined,
           level,
           position: Math.floor(i / 2),
           isLeaf: false
@@ -161,57 +167,102 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     return currentLevel[0] || null
   }, [hashData, hashBinary])
 
-  const findMerklePath = useCallback((tree: TreeNode, targetLeafId: string): MerklePathStep[] => {
-    const path: MerklePathStep[] = []
-    
-    const traverse = (node: TreeNode): boolean => {
-      if (node.isLeaf) {
-        if (node.id === targetLeafId) {
-          // Add the target leaf itself as the first step
-          path.push({
-            hash: node.hash,
-            position: 'left', // This will be corrected in calculateMerkleProofSteps
-            isTarget: true
-          })
-          return true
-        }
-        return false
-      }
-
-      // Check if target is in left subtree
-      const foundInLeft = node.left && traverse(node.left)
-      if (foundInLeft) {
-        // Target is in left subtree, so we need the right sibling
-        if (node.right) {
-          path.push({
-            hash: node.right.hash,
-            position: 'right',
-            isTarget: false
-          })
-        }
-        return true
-      }
-
-      // Check if target is in right subtree  
-      const foundInRight = node.right && traverse(node.right)
-      if (foundInRight) {
-        // Target is in right subtree, so we need the left sibling
-        if (node.left) {
-          path.push({
-            hash: node.left.hash,
-            position: 'left',
-            isTarget: false
-          })
-        }
-        return true
-      }
-
-      return false
+  const calculateMerklePath = useCallback(async (txids: string[], targetIndex: number): Promise<string[]> => {
+    // Implementation based on MerkleReport.md algorithm
+    if (targetIndex < 0 || targetIndex >= txids.length) {
+      throw new Error("Target index out of range");
     }
 
-    traverse(tree)
-    return path.reverse()
-  }, [])
+    const path: string[] = [];
+    let currentLevel = [...txids];
+    let currentIndex = targetIndex;
+
+    while (currentLevel.length > 1) {
+      // Handle odd number of elements by duplicating the last one
+      if (currentLevel.length % 2 === 1) {
+        currentLevel.push(currentLevel[currentLevel.length - 1]);
+      }
+
+      // Find sibling index
+      const isEven = currentIndex % 2 === 0;
+      const siblingIndex = isEven ? currentIndex + 1 : currentIndex - 1;
+      path.push(currentLevel[siblingIndex]);
+
+      // Build next level by actually calculating hashes
+      const nextLevel: string[] = [];
+      for (let i = 0; i < currentLevel.length; i += 2) {
+        const leftHash = currentLevel[i];
+        const rightHash = currentLevel[i + 1];
+        const combinedHash = await hashBinary(leftHash, rightHash);
+        nextLevel.push(combinedHash);
+      }
+
+      currentLevel = nextLevel;
+      currentIndex = Math.floor(currentIndex / 2);
+    }
+
+    return path;
+  }, [hashBinary]);
+
+  const findMerklePath = useCallback(async (tree: TreeNode, targetLeafId: string): Promise<MerklePathStep[]> => {
+    // Find the target leaf and its position
+    const findLeafNode = (node: TreeNode): { node: TreeNode | null, index: number } => {
+      if (node.isLeaf && node.id === targetLeafId) {
+        return { node, index: node.position };
+      }
+      if (node.left) {
+        const result = findLeafNode(node.left);
+        if (result.node) return result;
+      }
+      if (node.right) {
+        const result = findLeafNode(node.right);
+        if (result.node) return result;
+      }
+      return { node: null, index: -1 };
+    };
+
+    const { node: targetLeaf, index: targetIndex } = findLeafNode(tree);
+    if (!targetLeaf) return [];
+
+    // Collect all leaf hashes in order
+    const collectLeaves = (node: TreeNode): string[] => {
+      if (node.isLeaf) {
+        return [node.hash];
+      }
+      const leaves: string[] = [];
+      if (node.left) leaves.push(...collectLeaves(node.left));
+      if (node.right) leaves.push(...collectLeaves(node.right));
+      return leaves;
+    };
+
+    const leafHashes = collectLeaves(tree);
+    
+    try {
+      const siblingHashes = await calculateMerklePath(leafHashes, targetIndex);
+      
+      const path: MerklePathStep[] = [
+        {
+          hash: targetLeaf.hash,
+          position: 'left', // Will be corrected in proof steps
+          isTarget: true
+        }
+      ];
+
+      // Add sibling hashes to path
+      siblingHashes.forEach(hash => {
+        path.push({
+          hash,
+          position: 'right', // Will be determined correctly in proof calculation
+          isTarget: false
+        });
+      });
+
+      return path;
+    } catch (error) {
+      console.error('Error calculating merkle path:', error);
+      return [];
+    }
+  }, [calculateMerklePath])
 
   const getPathNodes = useCallback((tree: TreeNode, targetLeafId: string): Set<string> => {
     const pathNodeIds = new Set<string>()
@@ -311,11 +362,11 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     }
   }
 
-  const handleLeafClick = (leafId: string) => {
+  const handleLeafClick = async (leafId: string) => {
     if (!tree) return
     
     setSelectedLeaf(leafId)
-    const path = findMerklePath(tree, leafId)
+    const path = await findMerklePath(tree, leafId)
     setMerklePath(path)
     
     // Collect nodes involved in the merkle path and enable path-only view
@@ -334,7 +385,7 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     const steps = []
     let currentHash = targetLeafHash
     
-    // Find the target leaf position to determine if it's left or right at each level
+    // Find the target leaf position to determine concatenation order
     const findLeafPosition = (node: TreeNode): number => {
       if (node.isLeaf && node.id === targetLeafId) {
         return node.position
@@ -350,7 +401,7 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
       return -1
     }
     
-    let leafPosition = findLeafPosition(tree)
+    let currentIndex = findLeafPosition(tree)
     
     for (let i = 0; i < path.length; i++) {
       const step = path[i]
@@ -365,14 +416,14 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
           description: 'Target transaction hash'
         })
       } else {
-        // Determine if current node is on left or right based on its position
-        const isCurrentOnLeft = leafPosition % 2 === 0
+        // Use the algorithm from MerkleReport.md:
+        // If position is even: combined = current || sibling
+        // If position is odd: combined = sibling || current
+        const isEven = currentIndex % 2 === 0
+        const leftHash = isEven ? currentHash : step.hash
+        const rightHash = isEven ? step.hash : currentHash
         
-        // Set left and right hashes based on actual position
-        const leftHash = isCurrentOnLeft ? currentHash : step.hash
-        const rightHash = isCurrentOnLeft ? step.hash : currentHash
-        
-        // Use binary concatenation instead of string concatenation
+        // Apply Bitcoin's hashBinary (double SHA-256 with endianness)
         const resultHash = await hashBinary(leftHash, rightHash)
         
         steps.push({
@@ -381,13 +432,12 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
           leftHash,
           rightHash,
           result: resultHash,
-          description: `Combine current hash (${isCurrentOnLeft ? 'left' : 'right'}) with ${step.position} sibling`
+          description: `Position ${currentIndex} (${isEven ? 'even' : 'odd'}): ${isEven ? 'current+sibling' : 'sibling+current'}`
         })
         
-        // The result becomes our new current hash for the next level
+        // Move to next level: update position = floor(position / 2)
         currentHash = resultHash
-        // Move to parent level (divide position by 2)
-        leafPosition = Math.floor(leafPosition / 2)
+        currentIndex = Math.floor(currentIndex / 2)
       }
     }
     
