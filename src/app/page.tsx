@@ -19,7 +19,7 @@ const tools: Tool[] = [
   {
     id: 'beef-parser',
     name: 'BEEF Parser',
-    description: 'Parse and analyze BEEF transactions',
+    description: 'Parse and analyse BEEF transactions',
     icon: '🥩'
   },
   {

@@ -1,6 +1,6 @@
 # Merkle Path Algorithms in Bitcoin: Complete Implementation Guide
 
-Bitcoin's Merkle tree implementation provides cryptographic proof of transaction inclusion without requiring the full blockchain. This report details the algorithms, technical specifications, and production-ready TypeScript implementations specifically optimized for BSV/Bitcoin.
+Bitcoin's Merkle tree implementation provides cryptographic proof of transaction inclusion without requiring the full blockchain. This report details the algorithms, technical specifications, and production-ready TypeScript implementations specifically optimised for BSV/Bitcoin.
 
 ## Human-Readable Algorithms for Merkle Operations
 
@@ -55,7 +55,7 @@ SHA256d(data) = SHA256(SHA256(data))
 
 ### Merkle Path Structure and Encoding
 
-BSV has standardized the Merkle proof format with both binary and JSON representations:
+BSV has standardised the Merkle proof format with both binary and JSON representations:
 
 **Binary format**:
 
@@ -295,7 +295,7 @@ const verifyBEEFTransaction = async (beefHex: string) => {
 
 ### SPV (Simplified Payment Verification) Integration
 
-Merkle paths enable SPV by allowing lightweight clients to verify transactions without downloading the full blockchain. BSV has enhanced this with standardized formats:
+Merkle paths enable SPV by allowing lightweight clients to verify transactions without downloading the full blockchain. BSV has enhanced this with standardised formats:
 
 **BUMP (BSV Unified Merkle Paths)**: Optimized format for encoding multiple transaction proofs in the same block, reducing bandwidth when transactions share common ancestors.
 
@@ -314,7 +314,7 @@ Merkle paths enable SPV by allowing lightweight clients to verify transactions w
 
 **Validation speed**: O(log n) hash operations enable rapid verification even for massive blocks.
 
-**Bandwidth optimization**: Binary encoding and compound proofs minimize data transmission requirements.
+**Bandwidth optimisation**: Binary encoding and compound proofs minimise data transmission requirements.
 
 ### Security Best Practices
 
@@ -325,4 +325,4 @@ Merkle paths enable SPV by allowing lightweight clients to verify transactions w
 
 ## Conclusion
 
-Bitcoin's Merkle tree implementation provides elegant cryptographic proof of transaction inclusion with minimal data requirements. The algorithms presented here, combined with BSV's standardized formats and optimizations, enable scalable blockchain applications while maintaining security and efficiency. The TypeScript implementations provided are production-ready and optimized for the BSV ecosystem, supporting everything from micropayments to enterprise-scale transaction processing.
+Bitcoin's Merkle tree implementation provides elegant cryptographic proof of transaction inclusion with minimal data requirements. The algorithms presented here, combined with BSV's standardised formats and optimisations, enable scalable blockchain applications while maintaining security and efficiency. The TypeScript implementations provided are production-ready and optimised for the BSV ecosystem, supporting everything from micropayments to enterprise-scale transaction processing.

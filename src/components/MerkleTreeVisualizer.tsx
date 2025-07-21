@@ -666,7 +666,7 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
           </span>
         </h1>
         <p className="text-xl text-[#d1d5db] max-w-3xl mx-auto">
-          Build and visualize Merkle trees with full hash display and interactive proof verification
+          Build and visualise Merkle trees with full hash display and interactive proof verification
         </p>
       </div>
 
@@ -982,10 +982,26 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-blue-400 font-medium">✅ Verification Complete</span>
                     </div>
-                    <p className="text-sm text-blue-300">
+                    <p className="text-sm text-blue-300 mb-4">
                       The final calculated hash should match the merkle root to prove the transaction is included in the block.
-                      Compare the last result above with the merkle root hash displayed in the Tree Visualization tab.
                     </p>
+                    {tree && (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-blue-400 font-medium text-sm">🌳 Merkle Root (Expected):</span>
+                          <button
+                            onClick={() => copyToClipboard(tree.hash)}
+                            className="px-2 py-1 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded transition-colors"
+                            title="Copy merkle root"
+                          >
+                            📋 Copy
+                          </button>
+                        </div>
+                        <div className="p-3 bg-blue-900/30 border border-blue-500/50 rounded font-mono text-sm text-blue-300 break-all">
+                          {tree.hash}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

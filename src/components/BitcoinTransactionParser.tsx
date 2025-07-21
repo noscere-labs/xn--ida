@@ -357,7 +357,7 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
           </span>
         </h1>
         <p className="text-[#d1d5db] text-lg">
-          Parse and analyze the structure of standard Bitcoin transactions
+          Parse and analyse the structure of standard Bitcoin transactions
         </p>
       </div>
 

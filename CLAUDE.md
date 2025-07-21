@@ -4,9 +4,9 @@ This site is going to be used to host various tools. The first of which will be 
 
 # Styling
 
-## Color Palette
+## Colour Palette
 
-The color scheme is dark-mode dominant, using blacks and navies for backgrounds, whites for text, and vibrant blues/purples for accents and gradients. This creates a professional, futuristic feel.
+The colour scheme is dark-mode dominant, using blacks and navies for backgrounds, whites for text, and vibrant blues/purples for accents and gradients. This creates a professional, futuristic feel.
 
 Primary Background: #000000 (Pure black) – Used for the main body and hero section.
 Secondary Background (Footer): #0f172a (Dark navy/slate) – Provides subtle depth in footers or secondary sections.
@@ -23,7 +23,7 @@ H1: 36px, bold (weight: 700), line-height: 1.1, gradient text.
 H2/H3: 24-18px, bold, white text.
 Body Text:
 Paragraphs/Subtitles: 16-18px, regular (weight: 400), line-height: 1.5, white text.
-Navigation/Links: 16px, regular, white text; hover: underline or subtle color shift to #0a84ff.
+Navigation/Links: 16px, regular, white text; hover: underline or subtle colour shift to #0a84ff.
 Footer Text: 14px, regular, white text for descriptions and links.
 Usage Guidelines:
 
@@ -38,7 +38,7 @@ No italics or decorative fonts; keep minimalistic.
 The layout is responsive, using flexbox for alignment, with generous padding for a spacious feel.
 
 Overall Structure:
-Header: Fixed or sticky, flex layout (logo left, nav center, button right).
+Header: Fixed or sticky, flex layout (logo left, nav centre, button right).
 Hero Section: Full-width, centered content, 100-200px padding top/bottom.
 Main Content: A simple vertical stack.
 
@@ -57,11 +57,11 @@ Guidelines: Follow an 8px grid system (multiples of 8 for margins/padding) for a
 Primary Button ("Get Started"): Background #0a84ff, text #ffffff, padding 10px 20px, border-radius 5px, no border.
 Hover: Background #3ea6ff (lighter blue), cursor: pointer.
 Usage: Calls-to-action; keep concise text.
-Links: White text, no underline by default; hover: underline or color change.
+Links: White text, no underline by default; hover: underline or colour change.
 
 Guidelines:
 Icons should be minimal; avoid heavy illustrations. Ensure scalable (SVG preferred). 7. Other Visual Elements
-Backgrounds: Solid dark colors; no images or patterns shown.
+Backgrounds: Solid dark colours; no images or patterns shown.
 Transitions/Animations: Subtle (not shown, but suggest 0.3s ease for button hovers).
 Borders/Shadows: None used; design is flat and borderless for modernity.
 Accessibility: High contrast, alt text for icons/images, semantic HTML
@@ -89,7 +89,7 @@ Bear in mind there are two networks we can interrogate. main and test.
 - **Performance**: Hardware-accelerated animations with `transform3d` and `willChange`
 
 ### Merkle Tree Visualizer (`src/components/MerkleTreeVisualizer.tsx`)
-- **Purpose**: Build and visualize Merkle trees with interactive proof verification
+- **Purpose**: Build and visualise Merkle trees with interactive proof verification
 - **Key Features**:
   - Oblong nodes (180x80px) for full hash visibility
   - Centered tree positioning with proper spacing
@@ -149,10 +149,10 @@ Bear in mind there are two networks we can interrogate. main and test.
 - Include optional properties where appropriate
 
 ### Styling Consistency
-- Use Tailwind classes following the established color palette
+- Use Tailwind classes following the established colour palette
 - Maintain hover effects: `hover:scale-[1.02]` for cards, `hover:bg-[color]/20` for backgrounds
 - Consistent border radius: `rounded-lg` (8px) for cards, `rounded` (4px) for small elements
-- Use established color scheme: `#0a84ff` (blue), `#a855f7` (purple), `#0f172a` (navy)
+- Use established colour scheme: `#0a84ff` (blue), `#a855f7` (purple), `#0f172a` (navy)
 
 ### Performance Best Practices
 - Implement rate limiting for API calls (0.35s for WhatsOnChain)
@@ -192,7 +192,7 @@ Bear in mind there are two networks we can interrogate. main and test.
 ### UI/UX Improvements
 - Maintain 60fps animation targets
 - Include visual feedback for all user interactions
-- Use consistent color coding across tools
+- Use consistent colour coding across tools
 - Implement accessibility best practices (ARIA labels, keyboard navigation)
 
 ## Deployment Considerations
