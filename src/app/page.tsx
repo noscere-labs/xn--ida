@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import BEEFParser from '../components/BEEFParser';
 import MerkleTreeVisualizer from '../components/MerkleTreeVisualizer';
+import BitcoinTransactionParser from '../components/BitcoinTransactionParser';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
 
@@ -26,6 +27,12 @@ const tools: Tool[] = [
     name: 'Merkle Tree Visualizer',
     description: 'Visualize and verify Merkle tree structures',
     icon: '🌳'
+  },
+  {
+    id: 'bitcoin-tx-parser',
+    name: 'Bitcoin Transaction Parser',
+    description: 'Parse and breakdown standard Bitcoin transactions',
+    icon: '₿'
   }
 ];
 
@@ -92,6 +99,32 @@ export default function Home() {
 
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
           <MerkleTreeVisualizer network={network} />
+        </main>
+
+        <Footer />
+      </div>
+    );
+  }
+
+  if (selectedTool === 'bitcoin-tx-parser') {
+    return (
+      <div className="min-h-screen bg-black text-white font-sans flex flex-col">
+        <Header 
+          breadcrumbs={[
+            {
+              label: 'Tools',
+              href: '#',
+              onClick: handleBackToHome
+            },
+            { label: 'Bitcoin Transaction Parser' }
+          ]}
+          showNetworkToggle={true}
+          network={network}
+          onNetworkChange={setNetwork}
+        />
+
+        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
+          <BitcoinTransactionParser network={network} />
         </main>
 
         <Footer />
