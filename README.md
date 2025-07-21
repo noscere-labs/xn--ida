@@ -4,8 +4,8 @@ A collection of blockchain analysis tools built with Next.js, featuring a BEEF (
 
 ## Features
 
-- **BEEF Transaction Parser**: Parse and analyze BEEF format transactions with detailed visualization
-- **Merkle Tree Visualizer**: Build and visualize Merkle trees with interactive proof verification
+- **BEEF Transaction Parser**: Parse and analyse BEEF format transactions with detailed visualisation
+- **Merkle Tree Visualizer**: Build and visualise Merkle trees with interactive proof verification
 - Interactive transaction explorer with tabbed interface
 - Merkle proof (BUMP) analysis with blockchain validation
 - Transaction input/output breakdown
@@ -71,7 +71,7 @@ npx tsc --noEmit
 1. Navigate to the BEEF Parser tool
 2. Select network (mainnet/testnet) from the header toggle
 3. Paste your BEEF transaction hex data into the input field
-4. Click "Parse BEEF" to analyze the transaction
+4. Click "Parse BEEF" to analyse the transaction
 5. Explore the results through three main tabs:
    - **Overview**: Summary statistics and validation status
    - **BUMP Data**: Merkle proof analysis with blockchain validation
@@ -125,9 +125,9 @@ src/
 
 ### UI/UX
 - Responsive design with mobile support
-- Dark theme with professional color scheme
+- Dark theme with professional colour scheme
 - Smooth animations and transitions
-- Collapsible panels and organized tab interface
+- Collapsible panels and organised tab interface
 
 ## Contributing
 

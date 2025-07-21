@@ -18,10 +18,8 @@ export default function Header({
     <header className="sticky top-0 z-10 bg-[#0f172a] backdrop-blur-sm border-b border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center">
+          <div className="flex items-center gap-8">
             <h1 className="text-xl font-bold tracking-tight uppercase">NOSCERE</h1>
-          </div>
-          <div className="flex items-center gap-6">
             <nav className="flex items-center space-x-2">
               {breadcrumbs.map((crumb, index) => (
                 <div key={index} className="flex items-center">
@@ -48,6 +46,8 @@ export default function Header({
                 </div>
               ))}
             </nav>
+          </div>
+          <div className="flex items-center">
             {showNetworkToggle && network && onNetworkChange && (
               <NetworkToggle network={network} onNetworkChange={onNetworkChange} />
             )}
