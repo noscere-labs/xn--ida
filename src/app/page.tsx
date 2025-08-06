@@ -7,7 +7,7 @@ import TxWalker from "../components/TxWalker";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
 import { Network } from "../services/whatsonchain";
-import BEEFParser from "../components/BeefParser";
+import BEEFParser from "../components/BEEFParser";
 
 interface Tool {
   id: string;
