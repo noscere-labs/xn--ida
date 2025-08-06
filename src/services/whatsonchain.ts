@@ -68,48 +68,80 @@ export interface TransactionInfo {
   blocktime?: number;
 }
 
+export interface SpentInfo {
+  txid: string;
+  vin: number;
+}
+
+export interface BulkTransactionRequest {
+  txids: string[];
+}
+
+export interface BulkSpentRequest {
+  utxos: Array<{
+    txid: string;
+    vout: number;
+  }>;
+}
+
 export class WhatsOnChainService {
-  private baseUrl: string;
   private network: Network;
-  private rateLimitDelay = 350; // 0.35 seconds as per API requirements
-  private lastRequestTime = 0;
 
   constructor(network: Network = 'main') {
     this.network = network;
-    this.baseUrl = `https://api.whatsonchain.com/v1/bsv/${network}`;
   }
 
   public setNetwork(network: Network): void {
     this.network = network;
-    this.baseUrl = `https://api.whatsonchain.com/v1/bsv/${network}`;
   }
 
   public getNetwork(): Network {
     return this.network;
   }
 
-  private async rateLimit(): Promise<void> {
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-    
-    if (timeSinceLastRequest < this.rateLimitDelay) {
-      const waitTime = this.rateLimitDelay - timeSinceLastRequest;
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-    }
-    
-    this.lastRequestTime = Date.now();
-  }
-
   private async makeRequest<T>(endpoint: string): Promise<T> {
-    await this.rateLimit();
+    const response = await fetch('/api/whatsonchain', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        endpoint,
+        network: this.network,
+        method: 'GET'
+      }),
+    });
     
-    const response = await fetch(`${this.baseUrl}${endpoint}`);
+    const result = await response.json();
     
     if (!response.ok) {
-      throw new Error(`WhatsOnChain API error: ${response.status} ${response.statusText}`);
+      throw new Error(`WhatsOnChain API error: ${result.status || response.status} ${result.statusText || response.statusText}`);
     }
     
-    return response.json();
+    return result.data;
+  }
+
+  private async makePostRequest<T>(endpoint: string, data: unknown): Promise<T> {
+    const response = await fetch('/api/whatsonchain', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        endpoint,
+        network: this.network,
+        method: 'POST',
+        data
+      }),
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(`WhatsOnChain API error: ${result.status || response.status} ${result.statusText || response.statusText}`);
+    }
+    
+    return result.data;
   }
 
   public async getBlockByHeight(height: number): Promise<BlockInfo> {
@@ -131,6 +163,59 @@ export class WhatsOnChainService {
 
   public async getMerkleProof(txid: string): Promise<MerkleProof> {
     return this.makeRequest<MerkleProof>(`/tx/${txid}/proof/tsc`);
+  }
+
+  public async getBulkTransactions(txids: string[]): Promise<TransactionInfo[]> {
+    const request: BulkTransactionRequest = { txids };
+    return this.makePostRequest<TransactionInfo[]>('/txs', request);
+  }
+
+  public async getSpentStatus(txid: string, vout: number): Promise<SpentInfo | null> {
+    try {
+      return await this.makeRequest<SpentInfo>(`/tx/${txid}/${vout}/spent`);
+    } catch (error) {
+      // If the output is unspent, the API returns a 404
+      // Sometimes the API returns 400 for invalid requests or temporary issues
+      if (error instanceof Error && (error.message.includes('404') || error.message.includes('400'))) {
+        console.warn(`Spent status check failed for ${txid}:${vout}`, error.message);
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  public async getBulkSpentStatus(utxos: Array<{ txid: string; vout: number }>): Promise<Array<SpentInfo | null>> {
+    try {
+      const request: BulkSpentRequest = { utxos };
+      const response = await this.makePostRequest<Array<SpentInfo | null>>('/utxos/spent', request);
+      return response;
+    } catch {
+      // If bulk request fails, fall back to individual requests
+      const results: Array<SpentInfo | null> = [];
+      for (const utxo of utxos) {
+        try {
+          const spentInfo = await this.getSpentStatus(utxo.txid, utxo.vout);
+          results.push(spentInfo);
+        } catch {
+          results.push(null);
+        }
+      }
+      return results;
+    }
+  }
+
+  public async getInputTransactions(txid: string): Promise<TransactionInfo[]> {
+    const transaction = await this.getTransaction(txid);
+    const inputTxids = transaction.vin.map(input => input.txid);
+    
+    if (inputTxids.length === 0) {
+      return [];
+    }
+    
+    // Remove duplicates
+    const uniqueTxids = Array.from(new Set(inputTxids));
+    
+    return this.getBulkTransactions(uniqueTxids);
   }
 
   public async validateMerklePath(
