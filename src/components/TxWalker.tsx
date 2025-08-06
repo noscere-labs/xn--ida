@@ -45,12 +45,19 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
   const [navigationHistory, setNavigationHistory] = useState<NavigationHistory[]>([])
   const [currentHistoryIndex, setCurrentHistoryIndex] = useState<number>(-1)
   const [focusedTransaction, setFocusedTransaction] = useState<TransactionInfo | null>(null)
-  const [showInfoPane, setShowInfoPane] = useState<boolean>(true)
+  const [showInfoPane, setShowInfoPane] = useState<boolean>(false)
 
   // Sync network with WhatsOnChain service
   useEffect(() => {
     whatsOnChainService.setNetwork(network);
   }, [network]);
+
+  // Sync input field with focused transaction
+  useEffect(() => {
+    if (focusedTransaction) {
+      setTxInput(focusedTransaction.txid);
+    }
+  }, [focusedTransaction]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -74,24 +81,6 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
       setCurrentHistoryIndex(newHistory.length - 1)
     }
   }, [navigationHistory, currentHistoryIndex])
-
-  const navigateBack = useCallback(() => {
-    if (currentHistoryIndex > 0) {
-      const newIndex = currentHistoryIndex - 1
-      const historyItem = navigationHistory[newIndex]
-      setCurrentHistoryIndex(newIndex)
-      setFocusedTxid(historyItem.txid)
-    }
-  }, [currentHistoryIndex, navigationHistory])
-
-  const navigateForward = useCallback(() => {
-    if (currentHistoryIndex < navigationHistory.length - 1) {
-      const newIndex = currentHistoryIndex + 1
-      const historyItem = navigationHistory[newIndex]
-      setCurrentHistoryIndex(newIndex)
-      setFocusedTxid(historyItem.txid)
-    }
-  }, [currentHistoryIndex, navigationHistory])
 
   const loadTransactionGraph = useCallback(async (txid: string, addToNav: boolean = true) => {
     if (!txid.trim()) return
@@ -237,6 +226,24 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
       setSelectedNode(null)
     }
   }, [loadTransactionGraph])
+
+  const navigateBack = useCallback(async () => {
+    if (currentHistoryIndex > 0) {
+      const newIndex = currentHistoryIndex - 1
+      const historyItem = navigationHistory[newIndex]
+      setCurrentHistoryIndex(newIndex)
+      await loadTransactionGraph(historyItem.txid, false)
+    }
+  }, [currentHistoryIndex, navigationHistory, loadTransactionGraph])
+
+  const navigateForward = useCallback(async () => {
+    if (currentHistoryIndex < navigationHistory.length - 1) {
+      const newIndex = currentHistoryIndex + 1
+      const historyItem = navigationHistory[newIndex]
+      setCurrentHistoryIndex(newIndex)
+      await loadTransactionGraph(historyItem.txid, false)
+    }
+  }, [currentHistoryIndex, navigationHistory, loadTransactionGraph])
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -494,170 +501,172 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
           </div>
         )}
 
-        {/* Main Content Area */}
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Graph Visualization */}
-          <div className="flex-1 min-w-0">
-            {loading ? (
-              <div className="flex items-center justify-center h-96 bg-gray-800 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                  <span className="text-gray-300">Loading transaction graph...</span>
-                </div>
+        {/* Main Content Area - Full Width Visualization */}
+        <div className="relative">
+          {/* Graph Visualization - Full Width */}
+          {loading ? (
+            <div className="flex items-center justify-center h-96 bg-gray-800 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-gray-300">Loading transaction graph...</span>
               </div>
-            ) : graphData ? (
-              <div className="bg-black rounded-lg border border-gray-700 overflow-hidden">
-                <svg width="900" height="600" viewBox="0 0 900 600" className="w-full h-auto max-h-[70vh]">
-                  {/* Define arrow marker */}
-                  <defs>
-                    <marker
-                      id="arrowhead"
-                      markerWidth="10"
-                      markerHeight="7"
-                      refX="9"
-                      refY="3.5"
-                      orient="auto"
-                    >
-                      <polygon
-                        points="0 0, 10 3.5, 0 7"
-                        fill="#ffffff"
-                      />
-                    </marker>
-                  </defs>
-                  
-                  {/* Render connections first (behind nodes) */}
-                  {graphData.connections.map(renderConnection)}
-                  
-                  {/* Render nodes */}
-                  {renderNode(graphData.focusNode)}
-                  {graphData.inputNodes.map(renderNode)}
-                  {graphData.outputNodes.map(renderNode)}
-                </svg>
+            </div>
+          ) : graphData ? (
+            <div className="bg-black rounded-lg border border-gray-700 overflow-hidden">
+              <svg width="900" height="600" viewBox="0 0 900 600" className="w-full h-auto min-h-[70vh]">
+                {/* Define arrow marker */}
+                <defs>
+                  <marker
+                    id="arrowhead"
+                    markerWidth="10"
+                    markerHeight="7"
+                    refX="9"
+                    refY="3.5"
+                    orient="auto"
+                  >
+                    <polygon
+                      points="0 0, 10 3.5, 0 7"
+                      fill="#ffffff"
+                    />
+                  </marker>
+                </defs>
+                
+                {/* Render connections first (behind nodes) */}
+                {graphData.connections.map(renderConnection)}
+                
+                {/* Render nodes */}
+                {renderNode(graphData.focusNode)}
+                {graphData.inputNodes.map(renderNode)}
+                {graphData.outputNodes.map(renderNode)}
+              </svg>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-96 bg-gray-800 rounded-lg">
+              <div className="text-center">
+                <div className="text-4xl mb-4">🔍</div>
+                <h3 className="text-xl font-semibold text-white mb-2">No Transaction Loaded</h3>
+                <p className="text-gray-400">Enter a transaction ID above to start exploring the transaction graph.</p>
               </div>
-            ) : (
-              <div className="flex items-center justify-center h-96 bg-gray-800 rounded-lg">
-                <div className="text-center">
-                  <div className="text-4xl mb-4">🔍</div>
-                  <h3 className="text-xl font-semibold text-white mb-2">No Transaction Loaded</h3>
-                  <p className="text-gray-400">Enter a transaction ID above to start exploring the transaction graph.</p>
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Transaction Info Pane */}
+          {/* Transaction Details Overlay - Bottom Panel */}
           {showInfoPane && focusedTransaction && (
-            <div className="w-full lg:w-80 bg-gray-800 rounded-lg p-4 lg:flex-shrink-0">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Transaction Details</h3>
-                <button
-                  onClick={() => setShowInfoPane(false)}
-                  className="text-gray-400 hover:text-white"
-                >
-                  ✕
-                </button>
-              </div>
-              
-              <div className="space-y-4 text-sm">
-                {/* Transaction Hash */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-gray-400">Transaction ID:</span>
-                    <button
-                      onClick={() => copyToClipboard(focusedTransaction.txid)}
-                      className="text-blue-400 hover:text-blue-300 text-xs"
-                    >
-                      📋 Copy
-                    </button>
-                  </div>
-                  <div className="p-2 bg-gray-900 rounded border font-mono text-xs text-blue-400 break-all">
-                    {focusedTransaction.txid}
-                  </div>
+            <div className={`absolute bottom-0 left-0 right-0 bg-gray-800/95 backdrop-blur-sm border-t border-gray-600 rounded-t-lg shadow-2xl transform transition-transform duration-300 ease-in-out max-h-[50vh] overflow-hidden ${
+              showInfoPane ? 'translate-y-0' : 'translate-y-full'
+            }`}>
+              <div className="p-4 max-h-[50vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Transaction Details</h3>
+                  <button
+                    onClick={() => setShowInfoPane(false)}
+                    className="text-gray-400 hover:text-white transition-colors"
+                  >
+                    ✕
+                  </button>
                 </div>
-
-                {/* Basic Info */}
-                <div className="grid grid-cols-2 gap-4">
+                
+                <div className="space-y-4 text-sm">
+                  {/* Transaction Hash */}
                   <div>
-                    <span className="text-gray-400">Size:</span>
-                    <div className="text-white">{focusedTransaction.size} bytes</div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-gray-400">Transaction ID:</span>
+                      <button
+                        onClick={() => copyToClipboard(focusedTransaction.txid)}
+                        className="text-blue-400 hover:text-blue-300 text-xs transition-colors"
+                      >
+                        📋 Copy
+                      </button>
+                    </div>
+                    <div className="p-2 bg-gray-900 rounded border font-mono text-xs text-blue-400 break-all">
+                      {focusedTransaction.txid}
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-gray-400">Version:</span>
-                    <div className="text-white">{focusedTransaction.version}</div>
-                  </div>
-                  {focusedTransaction.confirmations && (
-                    <>
-                      <div>
-                        <span className="text-gray-400">Confirmations:</span>
-                        <div className="text-green-400">{focusedTransaction.confirmations}</div>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Block Height:</span>
-                        <div className="text-white">{focusedTransaction.blockheight}</div>
-                      </div>
-                    </>
-                  )}
-                </div>
 
-                {/* Inputs */}
-                <div>
-                  <h4 className="text-white font-semibold mb-2">Inputs ({focusedTransaction.vin.length}):</h4>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {focusedTransaction.vin.map((input, index) => (
-                      <div key={index} className="p-2 bg-gray-900 rounded border">
-                        <div className="flex items-center justify-between">
-                          <div className="font-mono text-xs text-blue-400 break-all flex-1 mr-2">
-                            {input.txid}:{input.vout}
-                          </div>
-                          <button
-                            onClick={() => loadTransactionGraph(input.txid)}
-                            className="flex-shrink-0 p-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors"
-                            title="Navigate to input transaction"
-                          >
-                            ⬅️
-                          </button>
+                  {/* Basic Info */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-gray-400">Size:</span>
+                      <div className="text-white">{focusedTransaction.size} bytes</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Version:</span>
+                      <div className="text-white">{focusedTransaction.version}</div>
+                    </div>
+                    {focusedTransaction.confirmations && (
+                      <>
+                        <div>
+                          <span className="text-gray-400">Confirmations:</span>
+                          <div className="text-green-400">{focusedTransaction.confirmations}</div>
                         </div>
-                      </div>
-                    ))}
+                        <div>
+                          <span className="text-gray-400">Block Height:</span>
+                          <div className="text-white">{focusedTransaction.blockheight}</div>
+                        </div>
+                      </>
+                    )}
                   </div>
-                </div>
 
-                {/* Outputs */}
-                <div>
-                  <h4 className="text-white font-semibold mb-2">Outputs ({focusedTransaction.vout.length}):</h4>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {focusedTransaction.vout.map((output, index) => {
-                      // Check if this output is spent by finding it in the graph data
-                      const isSpent = graphData?.outputNodes.find(node => 
-                        node.outputIndex === output.n && node.isSpent
-                      );
-                      const spentTxid = isSpent?.txid;
-                      
-                      return (
+                  {/* Inputs */}
+                  <div>
+                    <h4 className="text-white font-semibold mb-2">Inputs ({focusedTransaction.vin.length}):</h4>
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {focusedTransaction.vin.map((input, index) => (
                         <div key={index} className="p-2 bg-gray-900 rounded border">
-                          <div className="flex justify-between items-center mb-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-400">Output {output.n}:</span>
-                              <span className="text-green-400 text-xs">{output.value} BSV</span>
+                          <div className="flex items-center justify-between">
+                            <div className="font-mono text-xs text-blue-400 break-all flex-1 mr-2">
+                              {input.txid}:{input.vout}
                             </div>
-                            {isSpent && spentTxid && (
-                              <button
-                                onClick={() => loadTransactionGraph(spentTxid)}
-                                className="flex-shrink-0 p-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors"
-                                title="Navigate to spending transaction"
-                              >
-                                ➡️
-                              </button>
+                            <button
+                              onClick={() => loadTransactionGraph(input.txid)}
+                              className="flex-shrink-0 p-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors"
+                              title="Navigate to input transaction"
+                            >
+                              ⬅️
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Outputs */}
+                  <div>
+                    <h4 className="text-white font-semibold mb-2">Outputs ({focusedTransaction.vout.length}):</h4>
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {focusedTransaction.vout.map((output, index) => {
+                        // Check if this output is spent by finding it in the graph data
+                        const isSpent = graphData?.outputNodes.find(node => 
+                          node.outputIndex === output.n && node.isSpent
+                        );
+                        const spentTxid = isSpent?.txid;
+                        
+                        return (
+                          <div key={index} className="p-2 bg-gray-900 rounded border">
+                            <div className="flex justify-between items-center mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-400">Output {output.n}:</span>
+                                <span className="text-green-400 text-xs">{output.value} BSV</span>
+                              </div>
+                              {isSpent && spentTxid && (
+                                <button
+                                  onClick={() => loadTransactionGraph(spentTxid)}
+                                  className="flex-shrink-0 p-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors"
+                                  title="Navigate to spending transaction"
+                                >
+                                  ➡️
+                                </button>
+                              )}
+                            </div>
+                            {output.scriptPubKey.addresses && output.scriptPubKey.addresses.length > 0 && (
+                              <div className="font-mono text-xs text-gray-400 break-all">
+                                {output.scriptPubKey.addresses[0]}
+                              </div>
                             )}
                           </div>
-                          {output.scriptPubKey.addresses && output.scriptPubKey.addresses.length > 0 && (
-                            <div className="font-mono text-xs text-gray-400 break-all">
-                              {output.scriptPubKey.addresses[0]}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -668,7 +677,7 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
           {!showInfoPane && focusedTransaction && (
             <button
               onClick={() => setShowInfoPane(true)}
-              className="fixed bottom-6 right-6 lg:static p-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors shadow-lg lg:shadow-none z-10"
+              className="absolute bottom-4 right-4 p-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors shadow-lg z-20"
               title="Show transaction details"
             >
               📊
