@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import BEEFParser from '../components/BeefParser';
 import MerkleTreeVisualizer from '../components/MerkleTreeVisualizer';
 import TxParser from '../components/TxParser';
 import TxWalker from '../components/TxWalker';
@@ -44,6 +43,7 @@ const tools: Tool[] = [
 ];
 
 import { Network } from '../services/whatsonchain';
+import BEEFParser from '@/components/BeefParser';
 
 export default function Home() {
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
