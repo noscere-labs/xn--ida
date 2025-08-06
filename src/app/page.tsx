@@ -1,11 +1,13 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import MerkleTreeVisualizer from '../components/MerkleTreeVisualizer';
-import TxParser from '../components/TxParser';
-import TxWalker from '../components/TxWalker';
-import Footer from '../components/Footer';
-import Header from '../components/Header';
+import { useState } from "react";
+import MerkleTreeVisualizer from "../components/MerkleTreeVisualizer";
+import TxParser from "../components/TxParser";
+import TxWalker from "../components/TxWalker";
+import Footer from "../components/Footer";
+import Header from "../components/Header";
+import { Network } from "../services/whatsonchain";
+import BEEFParser from "../components/BeefParser";
 
 interface Tool {
   id: string;
@@ -17,40 +19,38 @@ interface Tool {
 
 const tools: Tool[] = [
   {
-    id: 'beef-parser',
-    name: 'BEEF Parser',
-    description: 'Parse and analyse BEEF transactions',
-    icon: '🥩'
+    id: "beef-parser",
+    name: "BEEF Parser",
+    description: "Parse and analyse BEEF transactions",
+    icon: "🥩",
   },
   {
-    id: 'merkle-tree',
-    name: 'Merkle Tree Visualizer',
-    description: 'Visualize and verify Merkle tree structures',
-    icon: '🌳'
+    id: "merkle-tree",
+    name: "Merkle Tree Visualizer",
+    description: "Visualize and verify Merkle tree structures",
+    icon: "🌳",
   },
   {
-    id: 'bitcoin-tx-parser',
-    name: 'Bitcoin Transaction Parser',
-    description: 'Parse and breakdown standard Bitcoin transactions',
-    icon: '₿'
+    id: "bitcoin-tx-parser",
+    name: "Bitcoin Transaction Parser",
+    description: "Parse and breakdown standard Bitcoin transactions",
+    icon: "₿",
   },
   {
-    id: 'tx-walker',
-    name: 'Transaction Walker',
-    description: 'Navigate through transaction graphs by exploring inputs and outputs',
-    icon: '🚶‍♂️'
-  }
+    id: "tx-walker",
+    name: "Transaction Walker",
+    description:
+      "Navigate through transaction graphs by exploring inputs and outputs",
+    icon: "🚶‍♂️",
+  },
 ];
-
-import { Network } from '../services/whatsonchain';
-import BEEFParser from '../components/BeefParser';
 
 export default function Home() {
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
-  const [network, setNetwork] = useState<Network>('main');
+  const [network, setNetwork] = useState<Network>("main");
 
   const handleToolSelect = (toolId: string) => {
-    const tool = tools.find(t => t.id === toolId);
+    const tool = tools.find((t) => t.id === toolId);
     if (tool?.comingSoon) {
       return;
     }
@@ -61,17 +61,17 @@ export default function Home() {
     setSelectedTool(null);
   };
 
-  if (selectedTool === 'beef-parser') {
+  if (selectedTool === "beef-parser") {
     return (
       <div className="min-h-screen bg-black text-white font-sans flex flex-col">
-        <Header 
+        <Header
           breadcrumbs={[
             {
-              label: 'Tools',
-              href: '#',
-              onClick: handleBackToHome
+              label: "Tools",
+              href: "#",
+              onClick: handleBackToHome,
             },
-            { label: 'BEEF Parser' }
+            { label: "BEEF Parser" },
           ]}
           showNetworkToggle={true}
           network={network}
@@ -87,17 +87,17 @@ export default function Home() {
     );
   }
 
-  if (selectedTool === 'merkle-tree') {
+  if (selectedTool === "merkle-tree") {
     return (
       <div className="min-h-screen bg-black text-white font-sans flex flex-col">
-        <Header 
+        <Header
           breadcrumbs={[
             {
-              label: 'Tools',
-              href: '#',
-              onClick: handleBackToHome
+              label: "Tools",
+              href: "#",
+              onClick: handleBackToHome,
             },
-            { label: 'Merkle Tree Visualizer' }
+            { label: "Merkle Tree Visualizer" },
           ]}
           showNetworkToggle={true}
           network={network}
@@ -113,17 +113,17 @@ export default function Home() {
     );
   }
 
-  if (selectedTool === 'bitcoin-tx-parser') {
+  if (selectedTool === "bitcoin-tx-parser") {
     return (
       <div className="min-h-screen bg-black text-white font-sans flex flex-col">
-        <Header 
+        <Header
           breadcrumbs={[
             {
-              label: 'Tools',
-              href: '#',
-              onClick: handleBackToHome
+              label: "Tools",
+              href: "#",
+              onClick: handleBackToHome,
             },
-            { label: 'Bitcoin Transaction Parser' }
+            { label: "Bitcoin Transaction Parser" },
           ]}
           showNetworkToggle={true}
           network={network}
@@ -139,17 +139,17 @@ export default function Home() {
     );
   }
 
-  if (selectedTool === 'tx-walker') {
+  if (selectedTool === "tx-walker") {
     return (
       <div className="min-h-screen bg-black text-white font-sans flex flex-col">
-        <Header 
+        <Header
           breadcrumbs={[
             {
-              label: 'Tools',
-              href: '#',
-              onClick: handleBackToHome
+              label: "Tools",
+              href: "#",
+              onClick: handleBackToHome,
             },
-            { label: 'Transaction Walker' }
+            { label: "Transaction Walker" },
           ]}
           showNetworkToggle={true}
           network={network}
@@ -181,7 +181,8 @@ export default function Home() {
             </span>
           </h1>
           <p className="text-xl text-[#d1d5db] max-w-2xl mx-auto">
-            A collection of powerful tools for Bitcoin SV development and analysis
+            A collection of powerful tools for Bitcoin SV development and
+            analysis
           </p>
         </div>
 
@@ -190,10 +191,11 @@ export default function Home() {
             <div
               key={tool.id}
               onClick={() => handleToolSelect(tool.id)}
-              className={`bg-[#0f172a] border border-gray-700 rounded-lg p-6 transition-all duration-300 ${tool.comingSoon
-                ? 'opacity-50 cursor-not-allowed'
-                : 'hover:border-[#0a84ff] hover:bg-[#0a84ff]/5 cursor-pointer hover:scale-[1.02]'
-                }`}
+              className={`bg-[#0f172a] border border-gray-700 rounded-lg p-6 transition-all duration-300 ${
+                tool.comingSoon
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:border-[#0a84ff] hover:bg-[#0a84ff]/5 cursor-pointer hover:scale-[1.02]"
+              }`}
             >
               <div className="flex flex-col items-center text-center space-y-4">
                 <div className="text-4xl">{tool.icon}</div>
