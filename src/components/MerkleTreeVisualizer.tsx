@@ -388,20 +388,8 @@ export default function MerkleTreeVisualizer({
     // First scroll to the visualization section
     setTimeout(() => {
       const leafNodes = document.querySelector("[data-leaf-nodes]");
-
-
-      const svgContainer = document.querySelector('[data-visualization-section] .overflow-auto')
-      const frame = svgContainer?.parentElement
-
-      const containerRect = svgContainer!.getBoundingClientRect()
-
-      const frameRect = frame!.getBoundingClientRect()
-      const scrollAmount = Math.ceil(frameRect.width/2)
-      console.log({scrollAmount})
-
-
       if (leafNodes) {
-        leafNodes.scrollIntoView({ behavior: "smooth", inline: "center", });
+        leafNodes.scrollIntoView({ behavior: "smooth", inline: "center" });
       }
 
     }, 750);

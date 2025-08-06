@@ -85,65 +85,63 @@ export interface BulkSpentRequest {
 }
 
 export class WhatsOnChainService {
-  private baseUrl: string;
   private network: Network;
-  private rateLimitDelay = 350; // 0.35 seconds as per API requirements
-  private lastRequestTime = 0;
 
   constructor(network: Network = 'main') {
     this.network = network;
-    this.baseUrl = `https://api.whatsonchain.com/v1/bsv/${network}`;
   }
 
   public setNetwork(network: Network): void {
     this.network = network;
-    this.baseUrl = `https://api.whatsonchain.com/v1/bsv/${network}`;
   }
 
   public getNetwork(): Network {
     return this.network;
   }
 
-  private async rateLimit(): Promise<void> {
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-    
-    if (timeSinceLastRequest < this.rateLimitDelay) {
-      const waitTime = this.rateLimitDelay - timeSinceLastRequest;
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-    }
-    
-    this.lastRequestTime = Date.now();
-  }
-
   private async makeRequest<T>(endpoint: string): Promise<T> {
-    await this.rateLimit();
-    
-    const response = await fetch(`${this.baseUrl}${endpoint}`);
-    
-    if (!response.ok) {
-      throw new Error(`WhatsOnChain API error: ${response.status} ${response.statusText}`);
-    }
-    
-    return response.json();
-  }
-
-  private async makePostRequest<T>(endpoint: string, data: unknown): Promise<T> {
-    await this.rateLimit();
-    
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const response = await fetch('/api/whatsonchain', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        endpoint,
+        network: this.network,
+        method: 'GET'
+      }),
     });
     
+    const result = await response.json();
+    
     if (!response.ok) {
-      throw new Error(`WhatsOnChain API error: ${response.status} ${response.statusText}`);
+      throw new Error(`WhatsOnChain API error: ${result.status || response.status} ${result.statusText || response.statusText}`);
     }
     
-    return response.json();
+    return result.data;
+  }
+
+  private async makePostRequest<T>(endpoint: string, data: unknown): Promise<T> {
+    const response = await fetch('/api/whatsonchain', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        endpoint,
+        network: this.network,
+        method: 'POST',
+        data
+      }),
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(`WhatsOnChain API error: ${result.status || response.status} ${result.statusText || response.statusText}`);
+    }
+    
+    return result.data;
   }
 
   public async getBlockByHeight(height: number): Promise<BlockInfo> {
@@ -177,7 +175,9 @@ export class WhatsOnChainService {
       return await this.makeRequest<SpentInfo>(`/tx/${txid}/${vout}/spent`);
     } catch (error) {
       // If the output is unspent, the API returns a 404
-      if (error instanceof Error && error.message.includes('404')) {
+      // Sometimes the API returns 400 for invalid requests or temporary issues
+      if (error instanceof Error && (error.message.includes('404') || error.message.includes('400'))) {
+        console.warn(`Spent status check failed for ${txid}:${vout}`, error.message);
         return null;
       }
       throw error;

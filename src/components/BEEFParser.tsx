@@ -291,6 +291,17 @@ export default function BEEFParser({ network }: BEEFParserProps) {
     }
   };
 
+  const resetBumpValidation = (bumpIndex: number) => {
+    if (!parsedBEEF) return;
+
+    const updatedBumps = [...parsedBEEF.bumps];
+    updatedBumps[bumpIndex] = {
+      ...updatedBumps[bumpIndex],
+      validation: undefined
+    };
+    setParsedBEEF({ ...parsedBEEF, bumps: updatedBumps });
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
@@ -560,6 +571,18 @@ export default function BEEFParser({ network }: BEEFParserProps) {
                               Validate
                             </button>
                           )}
+                          {bump.validation && bump.validation.isValid === false && !bump.validation.isValidating && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                resetBumpValidation(index);
+                              }}
+                              className="px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 transition-colors"
+                              title="Reset validation - try different network or re-validate"
+                            >
+                              Reset
+                            </button>
+                          )}
                           <div className="text-[#0a84ff]">
                             {expandedSections.has(`bump-${index}`) ? '▼' : '▶'}
                           </div>
@@ -579,7 +602,18 @@ export default function BEEFParser({ network }: BEEFParserProps) {
 
                           {bump.validation && (
                             <div className="border border-gray-600 rounded p-3 space-y-2">
-                              <h5 className="font-medium text-sm">Validation Results</h5>
+                              <div className="flex items-center justify-between">
+                                <h5 className="font-medium text-sm">Validation Results</h5>
+                                {bump.validation.isValid === false && (
+                                  <button
+                                    onClick={() => resetBumpValidation(index)}
+                                    className="px-2 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 transition-colors"
+                                    title="Reset validation - try different network or re-validate"
+                                  >
+                                    Reset
+                                  </button>
+                                )}
+                              </div>
 
                               {bump.validation.isValidating ? (
                                 <div className="flex items-center gap-2 text-sm text-[#0a84ff]">
@@ -674,7 +708,15 @@ export default function BEEFParser({ network }: BEEFParserProps) {
                     >
                       <div className="flex items-center gap-2">
                         <span className="font-medium">Transaction {index + 1}</span>
-                        <span className="text-sm text-[#d1d5db] font-mono">{tx.txid}</span>
+                        <a
+                          href={`https://${network === 'test' ? 'test.' : ''}whatsonchain.com/tx/${tx.txid}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-[#0a84ff] hover:text-[#3ea6ff] font-mono hover:underline transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {tx.txid}
+                        </a>
                         {tx.hasBump && (
                           <span className={`px-2 py-1 text-xs rounded ${parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === true
                             ? 'bg-green-500/20 text-green-400'
@@ -700,7 +742,32 @@ export default function BEEFParser({ network }: BEEFParserProps) {
                       <div className="p-4 space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                           <div>
-                            <HashDisplay hash={tx.txid} label="Transaction ID" />
+                            <div className="group">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-medium text-gray-400">Transaction ID:</span>
+                                <div className="flex items-center gap-2">
+                                  <a
+                                    href={`https://${network === 'test' ? 'test.' : ''}whatsonchain.com/tx/${tx.txid}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-2 py-1 bg-[#0a84ff] hover:bg-[#3ea6ff] text-white text-xs rounded transition-all"
+                                    title="View on WhatsOnChain"
+                                  >
+                                    🔗 View
+                                  </a>
+                                  <button
+                                    onClick={() => copyToClipboard(tx.txid)}
+                                    className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-all"
+                                    title="Copy to clipboard"
+                                  >
+                                    📋 Copy
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="p-2 bg-gray-900 rounded border font-mono text-xs text-blue-400 break-all leading-relaxed">
+                                {tx.txid}
+                              </div>
+                            </div>
                           </div>
                           <div className="space-y-2">
                             <div><span className="font-medium">Version:</span> {tx.version}</div>

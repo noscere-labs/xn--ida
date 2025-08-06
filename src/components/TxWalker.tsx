@@ -321,7 +321,7 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
     }
 
     return (
-      <g key={node.txid}>
+      <g key={`${node.type}-${node.txid}-${node.outputIndex ?? ''}`}>
         {/* Main node rounded rectangle */}
         <rect
           x={node.position.x - width / 2}
