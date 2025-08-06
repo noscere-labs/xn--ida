@@ -354,17 +354,31 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
         
         // Then scroll to center on root node after 750ms
         setTimeout(() => {
+          // Find the root node marker and center on it
           const rootNode = document.querySelector('[data-root-node]')
           if (rootNode) {
-            rootNode.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            
-            // Finally scroll to show leaf nodes after another 750ms
-            setTimeout(() => {
-              const leafNodes = document.querySelector('[data-leaf-nodes]')
-              if (leafNodes) {
-                leafNodes.scrollIntoView({ behavior: 'smooth', block: 'center' })
-              }
-            }, 750)
+            const rootRect = rootNode.getBoundingClientRect()
+            const svgContainer = document.querySelector('[data-visualization-section] .overflow-auto')
+            if (svgContainer) {
+              // Scroll the overflow container to center the root node
+              const containerRect = svgContainer.getBoundingClientRect()
+              const scrollX = rootRect.left + rootRect.width/2 - containerRect.left - containerRect.width/2 + svgContainer.scrollLeft + (containerRect.width * 0.5)
+              const scrollY = rootRect.top + rootRect.height/2 - containerRect.top - containerRect.height/2 + svgContainer.scrollTop
+              
+              svgContainer.scrollTo({ 
+                left: Math.max(0, scrollX), 
+                top: Math.max(0, scrollY), 
+                behavior: 'smooth' 
+              })
+              
+              // Finally scroll to show leaf nodes after another 750ms
+              setTimeout(() => {
+                const leafNodes = document.querySelector('[data-leaf-nodes]')
+                if (leafNodes) {
+                  leafNodes.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }
+              }, 750)
+            }
           }
         }, 750)
       }
@@ -473,6 +487,22 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
   const renderNode = (node: TreeNode, x: number, y: number, nodeWidth: number, nodeHeight: number) => {
     const isSelected = selectedLeaf === node.id
     const isInPath = merklePath.some(step => step.hash === node.hash)
+    const isRoot = node.level === (tree ? Math.max(...getAllNodes(tree).map(n => n.level)) : 0)
+    
+    // Determine node color based on type
+    const getNodeColor = () => {
+      if (isSelected) return '#a855f7' // Purple for selected
+      if (isInPath) return '#0a84ff' // Blue for path
+      if (isRoot) return '#a855f7' // Purple for root
+      if (node.isLeaf) return '#0a84ff' // Blue for leaves
+      return '#374151' // Gray for internal nodes
+    }
+    
+    const getStrokeColor = () => {
+      if (isSelected || isInPath) return '#ffffff'
+      if (isRoot || node.isLeaf) return '#ffffff'
+      return '#6b7280'
+    }
 
     // For leaf nodes, show txid; for internal nodes, show hash
     const displayText = node.isLeaf && node.value ? node.value : node.hash
@@ -493,10 +523,10 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
           height={nodeHeight}
           rx={8}
           ry={8}
-          fill={isSelected ? '#a855f7' : isInPath ? '#0a84ff' : '#374151'}
-          stroke={isSelected || isInPath ? '#ffffff' : '#6b7280'}
-          strokeWidth={isSelected ? 3 : 1}
-          className={node.isLeaf ? 'cursor-pointer hover:fill-blue-600' : ''}
+          fill={getNodeColor()}
+          stroke={getStrokeColor()}
+          strokeWidth={isSelected ? 3 : (isRoot || node.isLeaf) ? 2 : 1}
+          className={node.isLeaf ? 'cursor-pointer hover:opacity-80' : ''}
           onClick={node.isLeaf ? (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -549,6 +579,13 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     )
   }
 
+  const getAllNodes = (node: TreeNode): TreeNode[] => {
+    const nodes = [node]
+    if (node.left) nodes.push(...getAllNodes(node.left))
+    if (node.right && node.right !== node.left) nodes.push(...getAllNodes(node.right))
+    return nodes
+  }
+
   const renderTree = () => {
     if (!tree) return null
 
@@ -556,13 +593,6 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     const nodeHeight = 80
     const levelHeight = 120
     const minNodeSpacing = 20 // Minimum space between nodes
-
-    const getAllNodes = (node: TreeNode): TreeNode[] => {
-      const nodes = [node]
-      if (node.left) nodes.push(...getAllNodes(node.left))
-      if (node.right && node.right !== node.left) nodes.push(...getAllNodes(node.right))
-      return nodes
-    }
 
     const allNodes = getAllNodes(tree)
     // Remove duplicates by ID (in case of issues with duplication logic)
@@ -606,8 +636,24 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
       <div className="overflow-auto border border-gray-700 rounded-lg bg-black" style={{ maxHeight: '80vh', minHeight: 'auto' }}>
         <svg width={svgWidth} height={svgHeight} className="bg-black block">
           {/* Invisible markers for smooth navigation */}
-          <rect data-root-node x={svgWidth/2} y={startY} width={1} height={1} opacity={0} />
-          <rect data-leaf-nodes x={svgWidth/2} y={startY + maxLevel * levelHeight} width={1} height={1} opacity={0} />
+          {(() => {
+            // Calculate actual root node position using same logic as node rendering
+            const rootLevel = nodesByLevel[maxLevel] || []
+            const rootLevelWidth = svgWidth - 100
+            const rootSpacing = rootLevelWidth / (rootLevel.length + 1)
+            const rootX = rootLevel.length > 0 ? 50 + rootSpacing * (0 + 1) : svgWidth / 2
+            const rootY = startY
+            
+            // Calculate actual leaf nodes position
+            const leafY = startY + maxLevel * levelHeight
+            
+            return (
+              <g>
+                <rect data-root-node x={rootX} y={rootY} width={1} height={1} opacity={0} />
+                <rect data-leaf-nodes x={svgWidth/2} y={leafY} width={1} height={1} opacity={0} />
+              </g>
+            )
+          })()}
           
           {/* Render connections first (behind nodes) */}
           {nodesByLevel.map((levelNodes, level) => {
@@ -705,13 +751,13 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
           >
             Tree Visualization
           </button>
-          <button
+          {/* <button
             onClick={() => setActiveTab('merklepath')}
             className={`px-4 py-2 ${activeTab === 'merklepath' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-400'}`}
             disabled={merklePath.length === 0}
           >
             Merkle Path
-          </button>
+          </button> */}
           <button
             onClick={() => setActiveTab('calculation')}
             className={`px-4 py-2 ${activeTab === 'calculation' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-400'}`}
@@ -892,9 +938,7 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
                         </div>
                       ))}
                     </div>
-                    <p className="text-sm text-gray-400 mt-3">
-                      This path proves the selected transaction is included in the Merkle tree.
-                    </p>
+              
                   </div>
                 )}
               </div>
