@@ -43,7 +43,7 @@ const tools: Tool[] = [
 ];
 
 import { Network } from '../services/whatsonchain';
-import BEEFParser from '@/components/BeefParser';
+import BEEFParser from '../components/BeefParser';
 
 export default function Home() {
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
