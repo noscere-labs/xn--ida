@@ -143,7 +143,6 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
   }, [hashData, hashBinary])
 
   const calculateMerklePath = useCallback(async (txids: string[], targetIndex: number): Promise<string[]> => {
-    // Implementation based on MerkleReport.md algorithm
     if (targetIndex < 0 || targetIndex >= txids.length) {
       throw new Error("Target index out of range");
     }
@@ -308,6 +307,11 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
       setShowPathOnly(false)
       setCalculatingSteps(false)
       setActiveTab('visualization')
+      
+      // Start smooth navigation sequence
+      if (merkleTree) {
+        performSmoothNavigation()
+      }
 
     } catch (error) {
       setBlockError(error instanceof Error ? error.message : 'Failed to load block data')
@@ -328,12 +332,43 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     setPathNodes(pathNodeIds)
     setShowPathOnly(true)
 
-    // Scroll to top of page when a leaf is clicked
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Scroll to merkle root section when a leaf is clicked
+    setTimeout(() => {
+      const merkleRootSection = document.querySelector('[data-merkle-root]')
+      if (merkleRootSection) {
+        merkleRootSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 100)
   }
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
+  }
+  
+  const performSmoothNavigation = () => {
+    // First scroll to the visualization section
+    setTimeout(() => {
+      const visualizationSection = document.querySelector('[data-visualization-section]')
+      if (visualizationSection) {
+        visualizationSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        
+        // Then scroll to center on root node after 750ms
+        setTimeout(() => {
+          const rootNode = document.querySelector('[data-root-node]')
+          if (rootNode) {
+            rootNode.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            
+            // Finally scroll to show leaf nodes after another 750ms
+            setTimeout(() => {
+              const leafNodes = document.querySelector('[data-leaf-nodes]')
+              if (leafNodes) {
+                leafNodes.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }
+            }, 750)
+          }
+        }, 750)
+      }
+    }, 100)
   }
 
   const calculateMerkleProofSteps = useCallback(async (targetLeafHash: string, path: MerklePathStep[], targetLeafId: string) => {
@@ -373,7 +408,6 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
           description: 'Target transaction hash'
         })
       } else {
-        // Use the algorithm from MerkleReport.md:
         // If position is even: combined = current || sibling
         // If position is odd: combined = sibling || current
         const isEven = currentIndex % 2 === 0
@@ -440,13 +474,13 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     const isSelected = selectedLeaf === node.id
     const isInPath = merklePath.some(step => step.hash === node.hash)
 
-    // Split hash into 4 lines of 16 characters each
-    const hashLines = []
-    const fullHash = node.hash
-
-    // Split hash into 4 lines of 16 characters each
-    for (let i = 0; i < fullHash.length; i += 16) {
-      hashLines.push(fullHash.substring(i, i + 16))
+    // For leaf nodes, show txid; for internal nodes, show hash
+    const displayText = node.isLeaf && node.value ? node.value : node.hash
+    const textLines = []
+    
+    // Split text into 4 lines of 16 characters each
+    for (let i = 0; i < displayText.length; i += 16) {
+      textLines.push(displayText.substring(i, i + 16))
     }
 
     return (
@@ -471,12 +505,12 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
           style={node.isLeaf ? { pointerEvents: 'all' } : undefined}
         />
 
-        {/* Hash text */}
-        {hashLines.map((line, index) => (
+        {/* Text display - txid for leaves, hash for internal nodes */}
+        {textLines.map((line, index) => (
           <text
-            key={`hash-${index}`}
+            key={`text-${index}`}
             x={x}
-            y={y - (hashLines.length * 6) + (index * 12) + 6}
+            y={y - (textLines.length * 6) + (index * 12) + 6}
             textAnchor="middle"
             className="text-xs fill-white font-mono pointer-events-none"
             fontSize="9"
@@ -485,20 +519,8 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
           </text>
         ))}
 
-        {/* Value text (for leaf nodes) */}
-        {node.value && (
-          <text
-            x={x}
-            y={y + nodeHeight / 2 - 8}
-            textAnchor="middle"
-            className="text-xs fill-gray-300 pointer-events-none"
-            fontSize="8"
-          >
-            {node.value.length > 12 ? node.value.substring(0, 12) + '...' : node.value}
-          </text>
-        )}
 
-        {/* Copy button for hash */}
+        {/* Copy button - copies txid for leaves, hash for internal nodes */}
         <circle
           cx={x + nodeWidth / 2 - 12}
           cy={y - nodeHeight / 2 + 12}
@@ -510,7 +532,7 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            copyToClipboard(node.hash);
+            copyToClipboard(node.isLeaf && node.value ? node.value : node.hash);
           }}
           style={{ pointerEvents: 'all' }}
         />
@@ -583,6 +605,10 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
     return (
       <div className="overflow-auto border border-gray-700 rounded-lg bg-black" style={{ maxHeight: '80vh', minHeight: 'auto' }}>
         <svg width={svgWidth} height={svgHeight} className="bg-black block">
+          {/* Invisible markers for smooth navigation */}
+          <rect data-root-node x={svgWidth/2} y={startY} width={1} height={1} opacity={0} />
+          <rect data-leaf-nodes x={svgWidth/2} y={startY + maxLevel * levelHeight} width={1} height={1} opacity={0} />
+          
           {/* Render connections first (behind nodes) */}
           {nodesByLevel.map((levelNodes, level) => {
             const y = startY + (maxLevel - level) * levelHeight
@@ -782,11 +808,11 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
         </div>
 
         {activeTab === 'visualization' && (
-          <div className="space-y-4">
+          <div className="space-y-4" data-visualization-section>
             {tree ? (
               <div className="overflow-auto">
                 {tree && (
-                  <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                  <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700" data-merkle-root>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-semibold text-white">Merkle Root Hash</h3>
                       <div className="flex items-center gap-2">
@@ -837,9 +863,40 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
                   </div>
                 )}
                 <p className="text-gray-300 mb-4">
-                  Click on any leaf node (bottom row) to see its Merkle path proof and access the Merkle Path and Hash Calculation tabs.
+                  Click on any leaf node (bottom row) to see its Merkle path proof and access the Hash Calculation tab.
                 </p>
                 {renderTree()}
+                
+                {/* Integrated Merkle Path Display */}
+                {merklePath.length > 0 && (
+                  <div className="mt-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                    <h3 className="text-lg font-semibold text-white mb-4">
+                      🛤️ Merkle Path {selectedLeaf && `for Transaction ${selectedLeaf.replace('leaf-', '')}`}
+                    </h3>
+                    <div className="space-y-2">
+                      {merklePath.map((step, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-900 rounded border border-gray-600">
+                          <div className="flex items-center gap-3">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${step.isTarget ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'}`}>
+                              {step.isTarget ? 'Target' : `Sibling`}
+                            </span>
+                            <span className="font-mono text-sm text-blue-400 break-all">{step.hash}</span>
+                          </div>
+                          <button
+                            onClick={() => copyToClipboard(step.hash)}
+                            className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                            title="Copy hash"
+                          >
+                            📋
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-400 mt-3">
+                      This path proves the selected transaction is included in the Merkle tree.
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="p-8 bg-gray-800 rounded-lg text-center">
@@ -850,57 +907,6 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
           </div>
         )}
 
-        {activeTab === 'merklepath' && (
-          <div className="space-y-4">
-            {merklePath.length > 0 ? (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white mb-4">
-                  Merkle Path {selectedLeaf && `for ${selectedLeaf}`}
-                </h3>
-                <div className="space-y-3">
-                  {merklePath.map((step, index) => (
-                    <div key={index} className="p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <span className="text-sm text-gray-400 min-w-[60px] font-medium">
-                            Step {index + 1}:
-                          </span>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${step.isTarget ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'
-                            }`}>
-                            {step.isTarget ? 'Target Hash' : `Sibling Hash (${step.position})`}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => copyToClipboard(step.hash)}
-                          className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
-                          title="Copy hash to clipboard"
-                        >
-                          📋 Copy
-                        </button>
-                      </div>
-                      <div className="mt-3 p-3 bg-gray-900 rounded border">
-                        <span className="font-mono text-sm text-blue-400 break-all leading-relaxed">
-                          {step.hash}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 p-4 bg-gray-800 rounded-lg">
-                  <p className="text-sm text-gray-300">
-                    This path proves that the selected leaf is included in the Merkle tree.
-                    Each step shows either the target hash or a sibling hash needed for verification.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="p-8 bg-gray-800 rounded-lg text-center">
-                <h3 className="text-xl font-semibold text-white mb-2">No Merkle Path Selected</h3>
-                <p className="text-gray-400">Click on a leaf node in the Tree Visualization tab to generate a merkle path.</p>
-              </div>
-            )}
-          </div>
-        )}
 
         {activeTab === 'calculation' && (
           <div className="space-y-4">
@@ -930,48 +936,20 @@ export default function MerkleTreeVisualizer({ network = 'main' }: MerkleTreeVis
                         </div>
 
                         {step.rightHash ? (
-                          <div className="space-y-3">
-                            <div className="text-xs text-green-200 font-medium">{step.operation}</div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
-                              <div>
-                                <div className="text-xs text-gray-400 mb-1">Left Hash:</div>
-                                <div className="p-2 bg-gray-800 rounded border font-mono text-xs text-blue-400 break-all">
-                                  {step.leftHash}
-                                </div>
-                              </div>
-
-                              <div className="text-center">
-                                <div className="text-green-400 text-lg font-bold">+</div>
-                                <div className="text-xs text-gray-400">concatenate</div>
-                              </div>
-
-                              <div>
-                                <div className="text-xs text-gray-400 mb-1">Right Hash:</div>
-                                <div className="p-2 bg-gray-800 rounded border font-mono text-xs text-blue-400 break-all">
-                                  {step.rightHash}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="text-center">
-                              <div className="text-green-400 text-lg font-bold">↓</div>
-                              <div className="text-xs text-gray-400">SHA-256</div>
-                            </div>
-
-                            <div>
-                              <div className="text-xs text-gray-400 mb-1">Result:</div>
-                              <div className="p-3 bg-green-900/30 border border-green-500/50 rounded font-mono text-sm text-green-400 break-all">
-                                {step.result}
-                              </div>
+                          <div className="space-y-2">
+                            <div className="text-xs text-green-200">{step.operation}</div>
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="font-mono text-blue-400 break-all">{step.leftHash}</span>
+                              <span className="text-green-400 font-bold">+</span>
+                              <span className="font-mono text-blue-400 break-all">{step.rightHash}</span>
+                              <span className="text-green-400">→</span>
+                              <span className="font-mono text-green-400 break-all">{step.result}</span>
                             </div>
                           </div>
                         ) : (
-                          <div>
-                            <div className="text-xs text-gray-400 mb-1">Starting Hash:</div>
-                            <div className="p-3 bg-green-900/30 border border-green-500/50 rounded font-mono text-sm text-green-400 break-all">
-                              {step.result}
-                            </div>
+                          <div className="text-xs">
+                            <span className="text-gray-400">Start: </span>
+                            <span className="font-mono text-green-400 break-all">{step.result}</span>
                           </div>
                         )}
                       </div>

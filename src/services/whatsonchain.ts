@@ -68,6 +68,22 @@ export interface TransactionInfo {
   blocktime?: number;
 }
 
+export interface SpentInfo {
+  txid: string;
+  vin: number;
+}
+
+export interface BulkTransactionRequest {
+  txids: string[];
+}
+
+export interface BulkSpentRequest {
+  utxos: Array<{
+    txid: string;
+    vout: number;
+  }>;
+}
+
 export class WhatsOnChainService {
   private baseUrl: string;
   private network: Network;
@@ -112,6 +128,24 @@ export class WhatsOnChainService {
     return response.json();
   }
 
+  private async makePostRequest<T>(endpoint: string, data: unknown): Promise<T> {
+    await this.rateLimit();
+    
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`WhatsOnChain API error: ${response.status} ${response.statusText}`);
+    }
+    
+    return response.json();
+  }
+
   public async getBlockByHeight(height: number): Promise<BlockInfo> {
     return this.makeRequest<BlockInfo>(`/block/height/${height}`);
   }
@@ -131,6 +165,57 @@ export class WhatsOnChainService {
 
   public async getMerkleProof(txid: string): Promise<MerkleProof> {
     return this.makeRequest<MerkleProof>(`/tx/${txid}/proof/tsc`);
+  }
+
+  public async getBulkTransactions(txids: string[]): Promise<TransactionInfo[]> {
+    const request: BulkTransactionRequest = { txids };
+    return this.makePostRequest<TransactionInfo[]>('/txs', request);
+  }
+
+  public async getSpentStatus(txid: string, vout: number): Promise<SpentInfo | null> {
+    try {
+      return await this.makeRequest<SpentInfo>(`/tx/${txid}/${vout}/spent`);
+    } catch (error) {
+      // If the output is unspent, the API returns a 404
+      if (error instanceof Error && error.message.includes('404')) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  public async getBulkSpentStatus(utxos: Array<{ txid: string; vout: number }>): Promise<Array<SpentInfo | null>> {
+    try {
+      const request: BulkSpentRequest = { utxos };
+      const response = await this.makePostRequest<Array<SpentInfo | null>>('/utxos/spent', request);
+      return response;
+    } catch {
+      // If bulk request fails, fall back to individual requests
+      const results: Array<SpentInfo | null> = [];
+      for (const utxo of utxos) {
+        try {
+          const spentInfo = await this.getSpentStatus(utxo.txid, utxo.vout);
+          results.push(spentInfo);
+        } catch {
+          results.push(null);
+        }
+      }
+      return results;
+    }
+  }
+
+  public async getInputTransactions(txid: string): Promise<TransactionInfo[]> {
+    const transaction = await this.getTransaction(txid);
+    const inputTxids = transaction.vin.map(input => input.txid);
+    
+    if (inputTxids.length === 0) {
+      return [];
+    }
+    
+    // Remove duplicates
+    const uniqueTxids = Array.from(new Set(inputTxids));
+    
+    return this.getBulkTransactions(uniqueTxids);
   }
 
   public async validateMerklePath(

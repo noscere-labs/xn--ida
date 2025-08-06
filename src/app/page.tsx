@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import BEEFParser from '../components/BEEFParser';
+import BEEFParser from '../components/BeefParser';
 import MerkleTreeVisualizer from '../components/MerkleTreeVisualizer';
-import BitcoinTransactionParser from '../components/BitcoinTransactionParser';
+import TxParser from '../components/TxParser';
+import TxWalker from '../components/TxWalker';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
 
@@ -33,6 +34,12 @@ const tools: Tool[] = [
     name: 'Bitcoin Transaction Parser',
     description: 'Parse and breakdown standard Bitcoin transactions',
     icon: '₿'
+  },
+  {
+    id: 'tx-walker',
+    name: 'Transaction Walker',
+    description: 'Navigate through transaction graphs by exploring inputs and outputs',
+    icon: '🚶‍♂️'
   }
 ];
 
@@ -124,7 +131,33 @@ export default function Home() {
         />
 
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
-          <BitcoinTransactionParser network={network} />
+          <TxParser network={network} />
+        </main>
+
+        <Footer />
+      </div>
+    );
+  }
+
+  if (selectedTool === 'tx-walker') {
+    return (
+      <div className="min-h-screen bg-black text-white font-sans flex flex-col">
+        <Header 
+          breadcrumbs={[
+            {
+              label: 'Tools',
+              href: '#',
+              onClick: handleBackToHome
+            },
+            { label: 'Transaction Walker' }
+          ]}
+          showNetworkToggle={true}
+          network={network}
+          onNetworkChange={setNetwork}
+        />
+
+        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
+          <TxWalker network={network} />
         </main>
 
         <Footer />
@@ -152,7 +185,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 max-w-5xl mx-auto">
           {tools.map((tool) => (
             <div
               key={tool.id}
