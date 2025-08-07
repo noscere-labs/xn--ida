@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import MerkleTreeVisualizer from "../components/MerkleTreeVisualizer";
 import TxParser from "../components/TxParser";
 import TxWalker from "../components/TxWalker";
@@ -45,9 +45,82 @@ const tools: Tool[] = [
   },
 ];
 
+// Tool metadata configuration for dynamic Open Graph updates
+const toolMetadata = {
+  "beef-parser": {
+    title: "BEEF Parser - Bitcoin SV Transaction Analysis | Noscere Labs",
+    description: "Parse and analyze BEEF (Background Evaluation Extended Format) transactions on the Bitcoin SV blockchain. Validate transaction bundles and explore blockchain data.",
+    ogTitle: "BEEF Parser - Bitcoin SV Developer Tool",
+    ogDescription: "Parse and analyze BEEF transactions on Bitcoin SV with real-time blockchain validation and merkle path verification.",
+  },
+  "merkle-tree": {
+    title: "Merkle Tree Visualizer - Bitcoin SV Tool | Noscere Labs", 
+    description: "Visualize and verify Merkle tree structures with interactive proof generation. Build merkle trees and generate cryptographic proofs for Bitcoin SV development.",
+    ogTitle: "Merkle Tree Visualizer - Bitcoin SV Developer Tool",
+    ogDescription: "Visualize and verify Merkle tree structures with interactive proof generation for Bitcoin SV blockchain development.",
+  },
+  "bitcoin-tx-parser": {
+    title: "Bitcoin Transaction Parser - BSV Analysis Tool | Noscere Labs",
+    description: "Parse and breakdown standard Bitcoin SV transactions. Analyze inputs, outputs, scripts, and transaction structure in detail.",
+    ogTitle: "Bitcoin Transaction Parser - BSV Analysis Tool", 
+    ogDescription: "Parse and analyze Bitcoin SV transactions with detailed breakdown of inputs, outputs, and script analysis.",
+  },
+  "tx-walker": {
+    title: "Transaction Walker - Bitcoin SV Graph Explorer | Noscere Labs",
+    description: "Navigate through Bitcoin SV transaction graphs by exploring inputs and outputs. Trace transaction flows and analyze blockchain connections.",
+    ogTitle: "Transaction Walker - Bitcoin SV Graph Explorer",
+    ogDescription: "Navigate through Bitcoin SV transaction graphs and trace blockchain connections with interactive exploration tools.",
+  },
+};
+
 export default function Home() {
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [network, setNetwork] = useState<Network>("main");
+
+  // Update document metadata when tool changes
+  useEffect(() => {
+    if (selectedTool && toolMetadata[selectedTool as keyof typeof toolMetadata]) {
+      const meta = toolMetadata[selectedTool as keyof typeof toolMetadata];
+      const networkSuffix = network === "test" ? " (Testnet)" : " (Mainnet)";
+      
+      document.title = meta.title;
+      
+      // Update meta description
+      const metaDescription = document.querySelector('meta[name="description"]');
+      if (metaDescription) {
+        metaDescription.setAttribute('content', meta.description + networkSuffix);
+      }
+      
+      // Update Open Graph meta tags
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      if (ogTitle) {
+        ogTitle.setAttribute('content', meta.ogTitle + networkSuffix);
+      }
+      
+      const ogDescription = document.querySelector('meta[property="og:description"]');
+      if (ogDescription) {
+        ogDescription.setAttribute('content', meta.ogDescription + networkSuffix);
+      }
+      
+      // Update Twitter meta tags
+      const twitterTitle = document.querySelector('meta[name="twitter:title"]');
+      if (twitterTitle) {
+        twitterTitle.setAttribute('content', meta.ogTitle + networkSuffix);
+      }
+      
+      const twitterDescription = document.querySelector('meta[name="twitter:description"]');
+      if (twitterDescription) {
+        twitterDescription.setAttribute('content', meta.ogDescription + networkSuffix);
+      }
+    } else {
+      // Reset to default metadata
+      document.title = "Noscere Labs";
+      const metaDescription = document.querySelector('meta[name="description"]');
+      if (metaDescription) {
+        metaDescription.setAttribute('content', 'Bitcoin SV developer tools and blockchain analysis utilities');
+      }
+    }
+  }, [selectedTool, network]);
 
   const handleToolSelect = (toolId: string) => {
     const tool = tools.find((t) => t.id === toolId);
