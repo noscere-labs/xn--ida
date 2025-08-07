@@ -870,14 +870,14 @@ export default function MerkleTreeVisualizer({
 
         {/* Load Block Data Section - Always Visible */}
         <div className="mb-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Load Block Data from WhatsOnChain
-          </h3>
+          {/* <h3 className="text-lg font-semibold text-white mb-4">
+            Load Block Data
+          </h3> */}
           <div className="space-y-4">
             <div>
-              <label className="block text-white text-sm font-medium mb-2">
+              {/* <label className="block text-white text-sm font-medium mb-2">
                 Block Height or Hash:
-              </label>
+              </label> */}
               <input
                 type="text"
                 value={blockInput}
@@ -910,10 +910,10 @@ export default function MerkleTreeVisualizer({
                 create a Merkle tree visualization. You can enter either a block
                 height (number) or a block hash.
               </p>
-              <p>
+              {/* <p>
                 <span className="font-medium">Current network:</span>{" "}
                 {network === "main" ? "Mainnet" : "Testnet"}
-              </p>
+              </p> */}
               <p>
                 <span className="font-medium">Sample block heights:</span>{" "}
                 {network === "main" ? (
