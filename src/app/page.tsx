@@ -198,7 +198,13 @@ export default function Home() {
               }`}
             >
               <div className="flex flex-col items-center text-center space-y-4">
-                <div className="text-4xl">{tool.icon}</div>
+                <div className="text-4xl">
+                  {tool.icon.startsWith('/') ? (
+                    <img src={tool.icon} alt={tool.name} className="w-12 h-12 object-contain" />
+                  ) : (
+                    tool.icon
+                  )}
+                </div>
                 <div>
                   <h3 className="text-xl font-bold mb-2">{tool.name}</h3>
                   <p className="text-[#d1d5db] text-sm">{tool.description}</p>

@@ -365,17 +365,13 @@ export default function MerkleTreeVisualizer({
     setPathNodes(pathNodeIds);
     setShowPathOnly(true);
 
-    const id = "[data-merkle-root]";
-    const yOffset = -500;
-    const element = document.getElementById(id);
-    const y = element!.getBoundingClientRect().top + window.scrollY + yOffset;
+
 
     // Scroll to merkle root section when a leaf is clicked
     setTimeout(() => {
-      const merkleRootSection = document.querySelector("[data-merkle-root]");
-      if (merkleRootSection) {
-        // merkleRootSection.scrollIntoView({ behavior: 'smooth', block: 'start', inline: "center" })
-        merkleRootSection.scrollTo({ top: y, behavior: "smooth" });
+      const merkleRoot = document.querySelector("[data-root-node]");
+      if (merkleRoot) {
+        merkleRoot.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }, 100);
   };
