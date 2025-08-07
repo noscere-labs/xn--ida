@@ -19,7 +19,12 @@ export default function Header({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-8">
-            <h1 className="text-xl font-bold tracking-tight uppercase">NOSCERE</h1>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <img src="/logo.svg" alt="Noscere Ltd." className="w-50 h-20 object-contain opacity-70" />
+              </div>
+              {/* <h1 className="text-xl font-bold tracking-tight uppercase">NOSCERE</h1> */}
+            </div>
             <nav className="flex items-center space-x-2">
               {breadcrumbs.map((crumb, index) => (
                 <div key={index} className="flex items-center">

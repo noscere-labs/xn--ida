@@ -365,17 +365,13 @@ export default function MerkleTreeVisualizer({
     setPathNodes(pathNodeIds);
     setShowPathOnly(true);
 
-    const id = "[data-merkle-root]";
-    const yOffset = -500;
-    const element = document.getElementById(id);
-    const y = element!.getBoundingClientRect().top + window.scrollY + yOffset;
+
 
     // Scroll to merkle root section when a leaf is clicked
     setTimeout(() => {
-      const merkleRootSection = document.querySelector("[data-merkle-root]");
-      if (merkleRootSection) {
-        // merkleRootSection.scrollIntoView({ behavior: 'smooth', block: 'start', inline: "center" })
-        merkleRootSection.scrollTo({ top: y, behavior: "smooth" });
+      const merkleRoot = document.querySelector("[data-root-node]");
+      if (merkleRoot) {
+        merkleRoot.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }, 100);
   };
@@ -874,14 +870,14 @@ export default function MerkleTreeVisualizer({
 
         {/* Load Block Data Section - Always Visible */}
         <div className="mb-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Load Block Data from WhatsOnChain
-          </h3>
+          {/* <h3 className="text-lg font-semibold text-white mb-4">
+            Load Block Data
+          </h3> */}
           <div className="space-y-4">
             <div>
-              <label className="block text-white text-sm font-medium mb-2">
+              {/* <label className="block text-white text-sm font-medium mb-2">
                 Block Height or Hash:
-              </label>
+              </label> */}
               <input
                 type="text"
                 value={blockInput}
@@ -914,10 +910,10 @@ export default function MerkleTreeVisualizer({
                 create a Merkle tree visualization. You can enter either a block
                 height (number) or a block hash.
               </p>
-              <p>
+              {/* <p>
                 <span className="font-medium">Current network:</span>{" "}
                 {network === "main" ? "Mainnet" : "Testnet"}
-              </p>
+              </p> */}
               <p>
                 <span className="font-medium">Sample block heights:</span>{" "}
                 {network === "main" ? (
