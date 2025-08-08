@@ -8,6 +8,7 @@ import Footer from "../components/Footer";
 import Header from "../components/Header";
 import { Network } from "../services/whatsonchain";
 import BEEFParser from "../components/BEEFParser";
+import { trackToolSelection, trackNetworkToggle, trackUserJourney } from "../components/ClarityProvider";
 
 interface Tool {
   id: string;
@@ -77,6 +78,11 @@ export default function Home() {
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [network, setNetwork] = useState<Network>("main");
 
+  // Track initial page load
+  useEffect(() => {
+    trackUserJourney('homepage_loaded');
+  }, []); // Run only once on mount
+
   // Update document metadata when tool changes
   useEffect(() => {
     if (selectedTool && toolMetadata[selectedTool as keyof typeof toolMetadata]) {
@@ -127,11 +133,25 @@ export default function Home() {
     if (tool?.comingSoon) {
       return;
     }
+    
+    // Track tool selection with Clarity
+    trackToolSelection(toolId, tool?.name || 'Unknown Tool');
+    trackUserJourney('tool_selected');
+    
     setSelectedTool(toolId);
   };
 
   const handleBackToHome = () => {
+    // Track navigation back to homepage
+    trackUserJourney('returned_to_homepage');
     setSelectedTool(null);
+  };
+
+  const handleNetworkChange = (newNetwork: Network) => {
+    // Track network toggle
+    trackNetworkToggle(newNetwork, network);
+    trackUserJourney('network_changed');
+    setNetwork(newNetwork);
   };
 
   if (selectedTool === "beef-parser") {
@@ -148,7 +168,7 @@ export default function Home() {
           ]}
           showNetworkToggle={true}
           network={network}
-          onNetworkChange={setNetwork}
+          onNetworkChange={handleNetworkChange}
         />
 
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
@@ -174,7 +194,7 @@ export default function Home() {
           ]}
           showNetworkToggle={true}
           network={network}
-          onNetworkChange={setNetwork}
+          onNetworkChange={handleNetworkChange}
         />
 
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
@@ -200,7 +220,7 @@ export default function Home() {
           ]}
           showNetworkToggle={true}
           network={network}
-          onNetworkChange={setNetwork}
+          onNetworkChange={handleNetworkChange}
         />
 
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
@@ -226,7 +246,7 @@ export default function Home() {
           ]}
           showNetworkToggle={true}
           network={network}
-          onNetworkChange={setNetwork}
+          onNetworkChange={handleNetworkChange}
         />
 
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
