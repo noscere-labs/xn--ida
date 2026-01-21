@@ -7,20 +7,8 @@ interface WhatsOnChainRequest {
   data?: unknown;
 }
 
-let lastRequestTime = 0;
-const rateLimitDelay = 350; // 0.35 seconds as per API requirements
-
-async function rateLimit(): Promise<void> {
-  const now = Date.now();
-  const timeSinceLastRequest = now - lastRequestTime;
-  
-  if (timeSinceLastRequest < rateLimitDelay) {
-    const waitTime = rateLimitDelay - timeSinceLastRequest;
-    await new Promise(resolve => setTimeout(resolve, waitTime));
-  }
-  
-  lastRequestTime = Date.now();
-}
+// Rate limiting is handled client-side in whatsonchain.ts RequestQueue
+// Removing server-side rate limiting to prevent double-delay (was causing 1s+ per request)
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,9 +30,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Apply rate limiting
-    await rateLimit();
 
     const baseUrl = `https://api.whatsonchain.com/v1/bsv/${network}`;
     const url = `${baseUrl}${endpoint}`;
