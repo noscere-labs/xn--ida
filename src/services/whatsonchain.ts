@@ -84,6 +84,89 @@ export interface BulkSpentRequest {
   }>;
 }
 
+// Global request queue for rate limiting with exponential backoff
+class RequestQueue {
+  private queue: Array<() => Promise<any>> = [];
+  private processing = false;
+  private lastRequestTime = 0;
+  private readonly MIN_DELAY = 500; // Increased to 0.5 seconds for safety margin
+  private consecutiveRateLimitErrors = 0;
+  private currentBackoffDelay = 0;
+
+  async enqueue<T>(request: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          const result = await request();
+          // Reset backoff on success
+          this.consecutiveRateLimitErrors = 0;
+          this.currentBackoffDelay = 0;
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      this.processQueue();
+    });
+  }
+
+  private async processQueue(): Promise<void> {
+    if (this.processing || this.queue.length === 0) {
+      return;
+    }
+
+    this.processing = true;
+
+    while (this.queue.length > 0) {
+      const now = Date.now();
+      const timeSinceLastRequest = now - this.lastRequestTime;
+
+      // Calculate total delay including backoff
+      const totalDelay = this.MIN_DELAY + this.currentBackoffDelay;
+
+      // Wait if we need to respect rate limit
+      if (timeSinceLastRequest < totalDelay) {
+        const waitTime = totalDelay - timeSinceLastRequest;
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+
+      const request = this.queue.shift();
+      if (request) {
+        this.lastRequestTime = Date.now();
+        try {
+          await request();
+        } catch (error) {
+          // Check if it's a rate limit error
+          if (error instanceof Error && error.message.includes('429')) {
+            this.consecutiveRateLimitErrors++;
+            // Exponential backoff: 1s, 2s, 4s, 8s, 16s (max)
+            this.currentBackoffDelay = Math.min(
+              Math.pow(2, this.consecutiveRateLimitErrors - 1) * 1000,
+              16000
+            );
+            console.warn(`Rate limit hit. Applying ${this.currentBackoffDelay}ms backoff delay.`);
+          }
+          // Error already handled by request promise, just continue
+        }
+      }
+    }
+
+    this.processing = false;
+  }
+
+  public getQueueLength(): number {
+    return this.queue.length;
+  }
+
+  public getCurrentBackoff(): number {
+    return this.currentBackoffDelay;
+  }
+}
+
+// Global singleton queue
+const globalRequestQueue = new RequestQueue();
+
 export class WhatsOnChainService {
   private network: Network;
 
@@ -100,48 +183,52 @@ export class WhatsOnChainService {
   }
 
   private async makeRequest<T>(endpoint: string): Promise<T> {
-    const response = await fetch('/api/whatsonchain', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        endpoint,
-        network: this.network,
-        method: 'GET'
-      }),
+    return globalRequestQueue.enqueue(async () => {
+      const response = await fetch('/api/whatsonchain', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          endpoint,
+          network: this.network,
+          method: 'GET'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(`WhatsOnChain API error: ${result.status || response.status} ${result.statusText || response.statusText}`);
+      }
+
+      return result.data;
     });
-    
-    const result = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(`WhatsOnChain API error: ${result.status || response.status} ${result.statusText || response.statusText}`);
-    }
-    
-    return result.data;
   }
 
   private async makePostRequest<T>(endpoint: string, data: unknown): Promise<T> {
-    const response = await fetch('/api/whatsonchain', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        endpoint,
-        network: this.network,
+    return globalRequestQueue.enqueue(async () => {
+      const response = await fetch('/api/whatsonchain', {
         method: 'POST',
-        data
-      }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          endpoint,
+          network: this.network,
+          method: 'POST',
+          data
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(`WhatsOnChain API error: ${result.status || response.status} ${result.statusText || response.statusText}`);
+      }
+
+      return result.data;
     });
-    
-    const result = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(`WhatsOnChain API error: ${result.status || response.status} ${result.statusText || response.statusText}`);
-    }
-    
-    return result.data;
   }
 
   public async getBlockByHeight(height: number): Promise<BlockInfo> {
@@ -171,17 +258,58 @@ export class WhatsOnChainService {
   }
 
   public async getSpentStatus(txid: string, vout: number): Promise<SpentInfo | null> {
-    try {
-      return await this.makeRequest<SpentInfo>(`/tx/${txid}/${vout}/spent`);
-    } catch (error) {
-      // If the output is unspent, the API returns a 404
-      // Sometimes the API returns 400 for invalid requests or temporary issues
-      if (error instanceof Error && (error.message.includes('404') || error.message.includes('400'))) {
-        console.warn(`Spent status check failed for ${txid}:${vout}`, error.message);
-        return null;
+    const maxRetries = 3; // Reduced retries since queue handles backoff
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.makeRequest<SpentInfo>(`/tx/${txid}/${vout}/spent`);
+      } catch (error) {
+        if (error instanceof Error) {
+          // 404 typically means unspent
+          if (error.message.includes('404')) {
+            if (attempt < 1) {
+              // Only retry once for 404s
+              await new Promise(resolve => setTimeout(resolve, 500));
+              lastError = error;
+              continue;
+            } else {
+              // Assume it's genuinely unspent
+              return null;
+            }
+          }
+
+          // For 400 errors, don't retry - likely invalid
+          if (error.message.includes('400')) {
+            console.warn(`Invalid request for ${txid}:${vout}:`, error.message);
+            return null;
+          }
+
+          // For 429 errors, let queue handle backoff - only retry a few times
+          if (error.message.includes('429')) {
+            if (attempt < maxRetries) {
+              // Queue will apply exponential backoff automatically
+              lastError = error;
+              continue;
+            } else {
+              console.warn(`Rate limit persists for ${txid}:${vout} after ${maxRetries} retries`);
+              throw error;
+            }
+          }
+
+          // For other errors, retry with minimal backoff
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            lastError = error;
+            continue;
+          }
+        }
+        throw error;
       }
-      throw error;
     }
+
+    // If we exhausted all retries
+    throw lastError || new Error(`Failed to check spent status for ${txid}:${vout} after ${maxRetries} retries`);
   }
 
   public async getBulkSpentStatus(utxos: Array<{ txid: string; vout: number }>): Promise<Array<SpentInfo | null>> {
