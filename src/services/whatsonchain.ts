@@ -86,6 +86,7 @@ export interface BulkSpentRequest {
 
 // Global request queue for rate limiting with exponential backoff
 class RequestQueue {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private queue: Array<() => Promise<any>> = [];
   private processing = false;
   private lastRequestTime = 0;

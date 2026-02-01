@@ -273,7 +273,7 @@ export default function Home() {
 
   if (selectedTool === "tx-graph") {
     return (
-      <div className="min-h-screen bg-black text-white font-sans flex flex-col">
+      <div className="min-h-screen bg-[#0a0e1a] text-white font-sans flex flex-col">
         <Header
           breadcrumbs={[
             {
@@ -323,7 +323,7 @@ export default function Home() {
             <div
               key={tool.id}
               onClick={() => handleToolSelect(tool.id)}
-              className={`bg-[#0f172a] border border-[#1e3a5f] rounded-lg p-6 transition-all duration-300 ${
+              className={`bg-[#111827] border border-[#1e3a5f] rounded-lg p-6 transition-all duration-300 ${
                 tool.comingSoon
                   ? "opacity-50 cursor-not-allowed"
                   : "hover:border-[#3b82f6] hover:bg-[#3b82f6]/5 cursor-pointer hover:scale-[1.02]"

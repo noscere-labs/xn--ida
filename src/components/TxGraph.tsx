@@ -226,8 +226,8 @@ export default function TxGraph({ network }: TxGraphProps) {
 
   const getNodeColor = (type: TxGraphNode['type']): string => {
     switch (type) {
-      case 'root': return '#a855f7';
-      case 'intermediate': return '#0a84ff';
+      case 'root': return '#60a5fa';
+      case 'intermediate': return '#3b82f6';
       case 'utxo': return '#f59e0b';
       case 'fee-consumed': return '#ef4444';
       default: return '#6b7280';
@@ -328,7 +328,7 @@ export default function TxGraph({ network }: TxGraphProps) {
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
 
-    const edgeColor = edge.type === 'utxo' ? '#f59e0b' : edge.type === 'fee' ? '#ef4444' : '#0a84ff';
+    const edgeColor = edge.type === 'utxo' ? '#f59e0b' : edge.type === 'fee' ? '#ef4444' : '#3b82f6';
 
     return (
       <g key={`edge-${index}`}>
@@ -374,7 +374,7 @@ export default function TxGraph({ network }: TxGraphProps) {
   return (
     <div className="flex flex-col h-[calc(100vh-140px)]">
       {/* Compact Controls Bar */}
-      <div className="flex-shrink-0 bg-[#0f172a] border-b border-gray-800 px-4 py-3">
+      <div className="flex-shrink-0 bg-[#111827] border-b border-[#1e3a5f] px-4 py-3">
         <div className="flex flex-wrap items-center gap-4">
           {/* TXID Input */}
           <div className="flex-1 min-w-[300px] flex gap-2">
@@ -383,7 +383,7 @@ export default function TxGraph({ network }: TxGraphProps) {
               value={txid}
               onChange={(e) => setTxid(e.target.value)}
               placeholder="Enter transaction ID..."
-              className="flex-1 bg-black border border-gray-700 rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:border-[#0a84ff]"
+              className="flex-1 bg-[#0a0e1a] border border-[#1e3a5f] rounded px-3 py-1.5 text-white text-sm focus:outline-none focus:border-[#3b82f6]"
               disabled={status === 'running'}
             />
 
@@ -442,7 +442,7 @@ export default function TxGraph({ network }: TxGraphProps) {
                 placeholder="0"
                 step="0.0001"
                 min="0"
-                className="w-20 bg-black border border-gray-700 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-[#0a84ff]"
+                className="w-20 bg-[#0a0e1a] border border-[#1e3a5f] rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-[#3b82f6]"
                 disabled={status === 'running'}
               />
               <span className="text-xs text-[#d1d5db]">BSV</span>
@@ -457,7 +457,7 @@ export default function TxGraph({ network }: TxGraphProps) {
                 placeholder="4"
                 step="1"
                 min="0"
-                className="w-14 bg-black border border-gray-700 rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-[#0a84ff]"
+                className="w-14 bg-[#0a0e1a] border border-[#1e3a5f] rounded px-2 py-1 text-white text-xs focus:outline-none focus:border-[#3b82f6]"
                 disabled={status === 'running'}
               />
             </div>
@@ -469,7 +469,7 @@ export default function TxGraph({ network }: TxGraphProps) {
               <button
                 key={idx}
                 onClick={() => handleSampleTx(sampleTxid)}
-                className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+                className="px-2 py-1 text-xs bg-[#1a2332] hover:bg-[#243447] text-white rounded transition-colors"
                 disabled={status === 'running'}
               >
                 Sample {idx + 1}
@@ -482,7 +482,7 @@ export default function TxGraph({ network }: TxGraphProps) {
             <button
               onClick={() => setShowStats(!showStats)}
               className={`px-3 py-1.5 text-xs rounded transition-colors flex items-center gap-1.5 ${
-                showStats ? 'bg-[#0a84ff] text-white' : 'bg-gray-700 hover:bg-gray-600 text-white'
+                showStats ? 'bg-[#3b82f6] text-white' : 'bg-[#1a2332] hover:bg-[#243447] text-white'
               }`}
             >
               <span>Stats</span>
@@ -501,7 +501,7 @@ export default function TxGraph({ network }: TxGraphProps) {
 
       {/* Collapsible Statistics Panel */}
       <div
-        className={`flex-shrink-0 bg-[#0f172a] border-b border-gray-800 overflow-hidden transition-all duration-300 ease-in-out ${
+        className={`flex-shrink-0 bg-[#111827] border-b border-[#1e3a5f] overflow-hidden transition-all duration-300 ease-in-out ${
           showStats && graphData ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
@@ -509,7 +509,7 @@ export default function TxGraph({ network }: TxGraphProps) {
           <div className="flex flex-wrap items-center gap-6 text-sm">
             <div className="flex items-center gap-2">
               <span className="text-[#d1d5db]">Nodes:</span>
-              <span className="font-bold text-[#0a84ff]">{graphData?.stats.totalNodes || 0}</span>
+              <span className="font-bold text-[#3b82f6]">{graphData?.stats.totalNodes || 0}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[#d1d5db]">UTXOs:</span>
@@ -517,7 +517,7 @@ export default function TxGraph({ network }: TxGraphProps) {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[#d1d5db]">Depth:</span>
-              <span className="font-bold text-[#a855f7]">{graphData?.stats.maxDepth || 0}</span>
+              <span className="font-bold text-[#60a5fa]">{graphData?.stats.maxDepth || 0}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[#d1d5db]">Time:</span>
@@ -547,11 +547,11 @@ export default function TxGraph({ network }: TxGraphProps) {
       </div>
 
       {/* Full-Page Graph Area */}
-      <div className="flex-1 relative overflow-hidden bg-black">
+      <div className="flex-1 relative overflow-hidden bg-[#0a0e1a]">
         {/* Empty state */}
         {(!graphData || graphData.nodes.size === 0) && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center text-gray-500">
+            <div className="text-center text-[#64748b]">
               <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
@@ -580,7 +580,7 @@ export default function TxGraph({ network }: TxGraphProps) {
                   orient="auto"
                   markerUnits="strokeWidth"
                 >
-                  <polygon points="0 0, 10 3, 0 6" fill="#0a84ff" />
+                  <polygon points="0 0, 10 3, 0 6" fill="#3b82f6" />
                 </marker>
               </defs>
 
@@ -595,14 +595,14 @@ export default function TxGraph({ network }: TxGraphProps) {
 
         {/* Floating Legend - Bottom Left */}
         {graphData && graphData.nodes.size > 0 && (
-          <div className="absolute bottom-4 left-4 bg-black/80 backdrop-blur-sm rounded-lg p-3 border border-gray-700">
+          <div className="absolute bottom-4 left-4 bg-[#0a0e1a]/80 backdrop-blur-sm rounded-lg p-3 border border-[#1e3a5f]">
             <div className="flex flex-wrap gap-3 text-xs">
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded" style={{ backgroundColor: '#a855f7' }}></div>
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: '#60a5fa' }}></div>
                 <span className="text-[#d1d5db]">Root</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded" style={{ backgroundColor: '#0a84ff' }}></div>
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: '#3b82f6' }}></div>
                 <span className="text-[#d1d5db]">Intermediate</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -619,12 +619,12 @@ export default function TxGraph({ network }: TxGraphProps) {
 
         {/* Selected Node Details - Bottom Right */}
         {selectedNode && graphData && (
-          <div className="absolute bottom-4 right-4 bg-black/80 backdrop-blur-sm rounded-lg p-3 border border-gray-700 max-w-sm">
+          <div className="absolute bottom-4 right-4 bg-[#0a0e1a]/80 backdrop-blur-sm rounded-lg p-3 border border-[#1e3a5f] max-w-sm">
             <div className="text-xs text-[#d1d5db] mb-1">Selected Node</div>
-            <div className="font-mono text-xs break-all text-[#0a84ff]">{selectedNode}</div>
+            <div className="font-mono text-xs break-all text-[#3b82f6]">{selectedNode}</div>
             <button
               onClick={() => copyToClipboard(selectedNode)}
-              className="mt-2 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+              className="mt-2 px-2 py-1 text-xs bg-[#1a2332] hover:bg-[#243447] text-white rounded transition-colors"
             >
               Copy TXID
             </button>

@@ -8,9 +8,7 @@
 import { whatsOnChainService, TransactionInfo } from './whatsonchain';
 import {
   GraphData,
-  GraphStats,
   TxGraphNode,
-  GraphEdge,
   TraversalQueueItem,
   TxOutput,
   TraversalStatus,
@@ -252,6 +250,7 @@ export class GraphTraversal {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private handleUTXO(item: TraversalQueueItem, parent: TxGraphNode): void {
     const utxoId = `${item.txid}:${item.vout}`;
 
