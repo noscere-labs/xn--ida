@@ -15,7 +15,7 @@ export default function Header({
   onNetworkChange 
 }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-10 bg-[#0f172a] backdrop-blur-sm border-b border-gray-800">
+    <header className="sticky top-0 z-10 bg-[#111827] backdrop-blur-sm border-b border-[#1e3a5f]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-8">
@@ -28,19 +28,19 @@ export default function Header({
             <nav className="flex items-center space-x-2">
               {breadcrumbs.map((crumb, index) => (
                 <div key={index} className="flex items-center">
-                  {index > 0 && <span className="text-gray-400 mx-2">/</span>}
+                  {index > 0 && <span className="text-[#94a3b8] mx-2">/</span>}
                   {crumb.href ? (
                     crumb.onClick ? (
                       <button
                         onClick={crumb.onClick}
-                        className="text-[#0a84ff] hover:text-[#3ea6ff] transition-colors"
+                        className="text-[#3b82f6] hover:text-[#2563eb] transition-colors"
                       >
                         {crumb.label}
                       </button>
                     ) : (
                       <a 
                         href={crumb.href} 
-                        className="text-[#0a84ff] hover:text-[#3ea6ff] transition-colors"
+                        className="text-[#3b82f6] hover:text-[#2563eb] transition-colors"
                       >
                         {crumb.label}
                       </a>

@@ -274,14 +274,14 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
     
     switch (node.type) {
       case 'focus':
-        fillColor = '#a855f7'
+        fillColor = '#60a5fa'
         strokeColor = '#ffffff'
         width = 200
         height = 50
         break
       case 'input':
-        fillColor = '#0a84ff'
-        strokeColor = isSelected ? '#ffffff' : '#3ea6ff'
+        fillColor = '#3b82f6'
+        strokeColor = isSelected ? '#ffffff' : '#2563eb'
         width = 160
         height = 45
         break
@@ -367,7 +367,7 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
     
     if (!fromNode || !toNode) return null
     
-    const strokeColor = connection.type === 'input' ? '#0a84ff' : '#22c55e'
+    const strokeColor = connection.type === 'input' ? '#3b82f6' : '#22c55e'
     
     // Calculate midpoint for label positioning (accounting for ellipse edges)
     const x1 = connection.type === 'input' ? fromNode.position.x + 80 : fromNode.position.x - 100
@@ -432,7 +432,7 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
     <div className="space-y-6">
       <div className="text-center">
         <h1 className="text-4xl sm:text-4xl font-bold mb-4">
-          <span className="bg-gradient-to-r from-[#0a84ff] to-[#a855f7] bg-clip-text text-transparent">
+          <span className="text-[#3b82f6]">
             Transaction Walker
           </span>
         </h1>
@@ -441,7 +441,7 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
         </p>
       </div>
 
-      <div className="bg-[#0f172a] rounded-lg p-6">
+      <div className="bg-[#111827] rounded-lg p-6">
         {/* Transaction Input Section */}
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row gap-4">
@@ -454,7 +454,7 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
                 value={txInput}
                 onChange={(e) => setTxInput(e.target.value)}
                 placeholder="Enter transaction ID to start exploring..."
-                className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white font-mono text-sm"
+                className="w-full p-3 bg-[#1a2332] border border-gray-600 rounded-lg text-white font-mono text-sm"
                 onKeyPress={(e) => e.key === 'Enter' && handleTransactionInput()}
               />
             </div>
@@ -475,7 +475,7 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
               <button
                 onClick={navigateBack}
                 disabled={currentHistoryIndex <= 0}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
+                className="px-4 py-2 bg-[#1a2332] hover:bg-[#243447] disabled:bg-[#1a2332] disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
                 title="Navigate back"
               >
                 ⬅️ Back
@@ -483,12 +483,12 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
               <button
                 onClick={navigateForward}
                 disabled={currentHistoryIndex >= navigationHistory.length - 1}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
+                className="px-4 py-2 bg-[#1a2332] hover:bg-[#243447] disabled:bg-[#1a2332] disabled:cursor-not-allowed text-white rounded text-sm transition-colors"
                 title="Navigate forward"
               >
                 Forward ➡️
               </button>
-              <div className="flex items-center px-3 py-2 bg-gray-800 rounded text-sm text-gray-300">
+              <div className="flex items-center px-3 py-2 bg-[#1a2332] rounded text-sm text-[#cbd5e1]">
                 {currentHistoryIndex + 1} / {navigationHistory.length}
               </div>
             </div>
@@ -505,14 +505,14 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
         <div className="relative">
           {/* Graph Visualization - Full Width */}
           {loading ? (
-            <div className="flex items-center justify-center h-96 bg-gray-800 rounded-lg">
+            <div className="flex items-center justify-center h-96 bg-[#1a2332] rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                <span className="text-gray-300">Loading transaction graph...</span>
+                <span className="text-[#cbd5e1]">Loading transaction graph...</span>
               </div>
             </div>
           ) : graphData ? (
-            <div className="bg-black rounded-lg border border-gray-700 overflow-hidden">
+            <div className="bg-[#0a0e1a] rounded-lg border border-[#1e3a5f] overflow-hidden">
               <svg width="900" height="600" viewBox="0 0 900 600" className="w-full h-auto min-h-[70vh]">
                 {/* Define arrow marker */}
                 <defs>
@@ -541,18 +541,18 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
               </svg>
             </div>
           ) : (
-            <div className="flex items-center justify-center h-96 bg-gray-800 rounded-lg">
+            <div className="flex items-center justify-center h-96 bg-[#1a2332] rounded-lg">
               <div className="text-center">
                 <div className="text-4xl mb-4">🔍</div>
                 <h3 className="text-xl font-semibold text-white mb-2">No Transaction Loaded</h3>
-                <p className="text-gray-400">Enter a transaction ID above to start exploring the transaction graph.</p>
+                <p className="text-[#94a3b8]">Enter a transaction ID above to start exploring the transaction graph.</p>
               </div>
             </div>
           )}
 
           {/* Transaction Details Overlay - Bottom Panel */}
           {showInfoPane && focusedTransaction && (
-            <div className={`absolute bottom-0 left-0 right-0 bg-gray-800/95 backdrop-blur-sm border-t border-gray-600 rounded-t-lg shadow-2xl transform transition-transform duration-300 ease-in-out max-h-[50vh] overflow-hidden ${
+            <div className={`absolute bottom-0 left-0 right-0 bg-[#1a2332]/95 backdrop-blur-sm border-t border-gray-600 rounded-t-lg shadow-2xl transform transition-transform duration-300 ease-in-out max-h-[50vh] overflow-hidden ${
               showInfoPane ? 'translate-y-0' : 'translate-y-full'
             }`}>
               <div className="p-4 max-h-[50vh] overflow-y-auto">
@@ -560,7 +560,7 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
                   <h3 className="text-lg font-semibold text-white">Transaction Details</h3>
                   <button
                     onClick={() => setShowInfoPane(false)}
-                    className="text-gray-400 hover:text-white transition-colors"
+                    className="text-[#94a3b8] hover:text-white transition-colors"
                   >
                     ✕
                   </button>
@@ -570,7 +570,7 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
                   {/* Transaction Hash */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-gray-400">Transaction ID:</span>
+                      <span className="text-[#94a3b8]">Transaction ID:</span>
                       <button
                         onClick={() => copyToClipboard(focusedTransaction.txid)}
                         className="text-blue-400 hover:text-blue-300 text-xs transition-colors"
@@ -586,21 +586,21 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
                   {/* Basic Info */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <span className="text-gray-400">Size:</span>
+                      <span className="text-[#94a3b8]">Size:</span>
                       <div className="text-white">{focusedTransaction.size} bytes</div>
                     </div>
                     <div>
-                      <span className="text-gray-400">Version:</span>
+                      <span className="text-[#94a3b8]">Version:</span>
                       <div className="text-white">{focusedTransaction.version}</div>
                     </div>
                     {focusedTransaction.confirmations && (
                       <>
                         <div>
-                          <span className="text-gray-400">Confirmations:</span>
+                          <span className="text-[#94a3b8]">Confirmations:</span>
                           <div className="text-green-400">{focusedTransaction.confirmations}</div>
                         </div>
                         <div>
-                          <span className="text-gray-400">Block Height:</span>
+                          <span className="text-[#94a3b8]">Block Height:</span>
                           <div className="text-white">{focusedTransaction.blockheight}</div>
                         </div>
                       </>
@@ -645,7 +645,7 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
                           <div key={index} className="p-2 bg-gray-900 rounded border">
                             <div className="flex justify-between items-center mb-1">
                               <div className="flex items-center gap-2">
-                                <span className="text-gray-400">Output {output.n}:</span>
+                                <span className="text-[#94a3b8]">Output {output.n}:</span>
                                 <span className="text-green-400 text-xs">{output.value} BSV</span>
                               </div>
                               {isSpent && spentTxid && (
@@ -659,7 +659,7 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
                               )}
                             </div>
                             {output.scriptPubKey.addresses && output.scriptPubKey.addresses.length > 0 && (
-                              <div className="font-mono text-xs text-gray-400 break-all">
+                              <div className="font-mono text-xs text-[#94a3b8] break-all">
                                 {output.scriptPubKey.addresses[0]}
                               </div>
                             )}
@@ -677,7 +677,7 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
           {!showInfoPane && focusedTransaction && (
             <button
               onClick={() => setShowInfoPane(true)}
-              className="absolute bottom-4 right-4 p-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors shadow-lg z-20"
+              className="absolute bottom-4 right-4 p-3 bg-[#1a2332] hover:bg-[#243447] text-white rounded-lg transition-colors shadow-lg z-20"
               title="Show transaction details"
             >
               📊
@@ -704,20 +704,20 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
 
         {/* Sample Transaction IDs for quick testing */}
         {!focusedTransaction && (
-          <div className="mt-4 p-4 bg-gray-800/50 border border-gray-600 rounded-lg">
-            <h4 className="text-gray-300 font-semibold mb-3">Sample Transaction IDs ({network === 'main' ? 'Mainnet' : 'Testnet'}):</h4>
+          <div className="mt-4 p-4 bg-[#1a2332]/50 border border-gray-600 rounded-lg">
+            <h4 className="text-[#cbd5e1] font-semibold mb-3">Sample Transaction IDs ({network === 'main' ? 'Mainnet' : 'Testnet'}):</h4>
             <div className="flex flex-wrap gap-2">
               {network === 'main' ? (
                 <>
                   <button
                     onClick={() => setTxInput('c1d32f28baa27a376ba977f6a8de6ce0a87041157cef0274b20bfda2b0d8df96')}
-                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm font-mono transition-colors"
+                    className="px-3 py-1 bg-[#1a2332] hover:bg-[#243447] text-[#e2e8f0] rounded text-sm font-mono transition-colors"
                   >
                     c1d32f28...
                   </button>
                   <button
                     onClick={() => setTxInput('4bdbdb7483c1c7ef48cda78ee4141af7cf15f94e10324e0bcac43c29394ea4a9')}
-                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm font-mono transition-colors"
+                    className="px-3 py-1 bg-[#1a2332] hover:bg-[#243447] text-[#e2e8f0] rounded text-sm font-mono transition-colors"
                   >
                     4bdbdb74...
                   </button>
@@ -726,13 +726,13 @@ export default function TxWalker({ network = 'main' }: TxWalkerProps) {
                 <>
                   <button
                     onClick={() => setTxInput('294cd1ebd5689fdee03509f92c32184c0f52f037d4046af250229b97e0c8f1aa')}
-                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm font-mono transition-colors"
+                    className="px-3 py-1 bg-[#1a2332] hover:bg-[#243447] text-[#e2e8f0] rounded text-sm font-mono transition-colors"
                   >
                     294cd1eb...
                   </button>
                   <button
                     onClick={() => setTxInput('91f68c2c598bc73812dd32d60ab67005eac498bef5f0c45b822b3c9468ba3258')}
-                    className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm font-mono transition-colors"
+                    className="px-3 py-1 bg-[#1a2332] hover:bg-[#243447] text-[#e2e8f0] rounded text-sm font-mono transition-colors"
                   >
                     91f68c2c...
                   </button>

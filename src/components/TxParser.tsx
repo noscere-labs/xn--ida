@@ -10,7 +10,7 @@ const InfoTooltip = ({ text }: { text: string }) => {
   return (
     <div className="relative inline-block ml-1">
       <button
-        className="text-gray-400 hover:text-blue-400 text-xs"
+        className="text-[#94a3b8] hover:text-blue-400 text-xs"
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}
         onClick={(e) => e.preventDefault()}
@@ -18,7 +18,7 @@ const InfoTooltip = ({ text }: { text: string }) => {
         ⓘ
       </button>
       {isVisible && (
-        <div className="absolute z-10 w-64 p-2 text-xs text-white bg-gray-800 border border-gray-600 rounded shadow-lg bottom-full left-0 mb-1">
+        <div className="absolute z-10 w-64 p-2 text-xs text-white bg-[#1a2332] border border-gray-600 rounded shadow-lg bottom-full left-0 mb-1">
           {text}
           <div className="absolute top-full left-2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
         </div>
@@ -32,25 +32,25 @@ const VarIntExplainer = () => {
   const [isExpanded, setIsExpanded] = useState(false)
 
   return (
-    <div className="bg-[#0f172a] rounded-lg p-4 mb-6 border border-gray-700">
+    <div className="bg-[#111827] rounded-lg p-4 mb-6 border border-[#1e3a5f]">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="flex items-center justify-between w-full text-left"
       >
-        <h3 className="text-lg font-bold text-[#0a84ff]">About VarInt Encoding</h3>
-        <span className="text-gray-400">
+        <h3 className="text-lg font-bold text-[#3b82f6]">About VarInt Encoding</h3>
+        <span className="text-[#94a3b8]">
           {isExpanded ? '▼' : '▶'}
         </span>
       </button>
 
       {isExpanded && (
-        <div className="mt-4 space-y-3 text-sm text-gray-300">
+        <div className="mt-4 space-y-3 text-sm text-[#cbd5e1]">
           <p>
             VarInt (Variable Integer) is a space-efficient encoding method used throughout Bitcoin
             transactions to represent integers of varying sizes using the minimum number of bytes.
           </p>
 
-          <div className="bg-black rounded p-3">
+          <div className="bg-[#0a0e1a] rounded p-3">
             <h4 className="font-bold text-blue-400 mb-2">Encoding Rules:</h4>
             <ul className="space-y-1 font-mono text-xs">
               <li><span className="text-green-400">0-252:</span> 1 byte (direct value)</li>
@@ -60,7 +60,7 @@ const VarIntExplainer = () => {
             </ul>
           </div>
 
-          <div className="bg-black rounded p-3">
+          <div className="bg-[#0a0e1a] rounded p-3">
             <h4 className="font-bold text-blue-400 mb-2">Examples:</h4>
             <ul className="space-y-1 font-mono text-xs">
               <li><span className="text-yellow-400">187</span> → <span className="text-green-400">0xBB</span> (1 byte)</li>
@@ -69,7 +69,7 @@ const VarIntExplainer = () => {
             </ul>
           </div>
 
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-[#94a3b8]">
             Fields marked with &quot;VarInt&quot; in the transaction use this encoding for efficient storage.
           </p>
         </div>
@@ -352,7 +352,7 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
     <div className="max-w-7xl mx-auto">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-4">
-          <span className="bg-gradient-to-r from-[#0a84ff] to-[#a855f7] bg-clip-text text-transparent">
+          <span className="text-[#3b82f6]">
             Bitcoin Transaction Parser
           </span>
         </h1>
@@ -362,7 +362,7 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
       </div>
 
       {/* Input Section */}
-      <div className="bg-[#0f172a] rounded-lg p-6 mb-6">
+      <div className="bg-[#111827] rounded-lg p-6 mb-6">
         <h2 className="text-xl font-bold mb-4">Transaction Input</h2>
 
         <div className="mb-4">
@@ -373,7 +373,7 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
             value={hexInput}
             onChange={(e) => setHexInput(e.target.value)}
             placeholder="Enter transaction hex string..."
-            className="w-full h-32 px-3 py-2 bg-black border border-gray-700 rounded font-mono text-sm resize-vertical"
+            className="w-full h-32 px-3 py-2 bg-[#0a0e1a] border border-[#1e3a5f] rounded font-mono text-sm resize-vertical"
           />
         </div>
 
@@ -381,21 +381,21 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
           <button
             onClick={parseTransaction}
             disabled={parsing || !hexInput.trim()}
-            className="px-4 py-2 bg-[#0a84ff] text-white rounded hover:bg-[#3ea6ff] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-[#3b82f6] text-white rounded hover:bg-[#2563eb] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {parsing ? 'Parsing...' : 'Parse Transaction'}
           </button>
 
           <button
             onClick={loadSampleTransaction}
-            className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600"
+            className="px-4 py-2 bg-[#1a2332] text-white rounded hover:bg-[#243447]"
           >
             Load Sample ({network === 'main' ? 'Mainnet' : 'Testnet'})
           </button>
 
           <button
             onClick={clearInput}
-            className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600"
+            className="px-4 py-2 bg-[#1a2332] text-white rounded hover:bg-[#243447]"
           >
             Clear
           </button>
@@ -451,59 +451,59 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
 
       {/* Parsed Output Section */}
       {parsedTx && (
-        <div className="bg-[#0f172a] rounded-lg p-6">
+        <div className="bg-[#111827] rounded-lg p-6">
           <h2 className="text-xl font-bold mb-4">Transaction Breakdown</h2>
 
           <div className="space-y-6 font-mono text-sm">
             {/* Version */}
-            <div className="border-b border-gray-700 pb-4">
+            <div className="border-b border-[#1e3a5f] pb-4">
               <div className="flex justify-between items-start group">
                 <div className="flex items-center">
                   <span className="text-blue-400">version:</span>
                   <InfoTooltip text="Transaction format version number (4 bytes). Currently version 2 for most transactions. Identifies which transaction format rules to follow." />
                 </div>
                 <div className="flex flex-col items-end text-right">
-                  <span className="font-mono cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
+                  <span className="font-mono cursor-pointer hover:bg-[#1a2332] px-2 py-1 rounded"
                     onClick={() => copyToClipboard(parsedTx.version)}>
                     {parsedTx.version}
                   </span>
                   {showSizing && (
-                    <div className="text-gray-400 text-xs">{parsedTx.versionLength} bytes</div>
+                    <div className="text-[#94a3b8] text-xs">{parsedTx.versionLength} bytes</div>
                   )}
                 </div>
               </div>
             </div>
 
             {/* Input Count */}
-            <div className="border-b border-gray-700 pb-4">
+            <div className="border-b border-[#1e3a5f] pb-4">
               <div className="flex justify-between items-start group">
                 <div className="flex items-center">
                   <span className="text-blue-400">txInsVi:</span>
                   <InfoTooltip text="Transaction input counter in VarInt format (1-9 bytes). Specifies how many inputs follow. Uses variable-length encoding to efficiently store the count." />
                 </div>
                 <div className="flex flex-col items-end text-right">
-                  <span className="font-mono cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
+                  <span className="font-mono cursor-pointer hover:bg-[#1a2332] px-2 py-1 rounded"
                     onClick={() => copyToClipboard(parsedTx.txInsVi)}>
                     {parsedTx.txInsVi}
                   </span>
                   {showSizing && (
-                    <div className="text-gray-400 text-xs">{parsedTx.txInsViLength} bytes</div>
+                    <div className="text-[#94a3b8] text-xs">{parsedTx.txInsViLength} bytes</div>
                   )}
                 </div>
               </div>
             </div>
 
             {/* Inputs */}
-            <div className="border-b border-gray-700 pb-4">
-              <h3 className="text-lg font-bold mb-3 text-[#a855f7]">Inputs</h3>
+            <div className="border-b border-[#1e3a5f] pb-4">
+              <h3 className="text-lg font-bold mb-3 text-[#60a5fa]">Inputs</h3>
               {parsedTx.inputs.map((input, index) => (
-                <div key={index} className="mb-4 p-4 bg-black rounded border-l-4 border-[#a855f7]">
+                <div key={index} className="mb-4 p-4 bg-[#0a0e1a] rounded border-l-4 border-[#60a5fa]">
                   <button
                     onClick={() => toggleInput(index)}
                     className="flex items-center justify-between w-full text-left mb-2"
                   >
-                    <h4 className="text-sm font-bold text-gray-300">Input {index + 1}</h4>
-                    <span className="text-gray-400 hover:text-white transition-colors">
+                    <h4 className="text-sm font-bold text-[#cbd5e1]">Input {index + 1}</h4>
+                    <span className="text-[#94a3b8] hover:text-white transition-colors">
                       {expandedInputs.has(index) ? '▼' : '▶'}
                     </span>
                   </button>
@@ -516,12 +516,12 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
                           <InfoTooltip text="Previous transaction hash (32 bytes). The TXID of the transaction containing the output being spent." />
                         </div>
                         <div className="flex flex-col items-end text-right">
-                          <span className="font-mono cursor-pointer hover:bg-gray-700 px-2 py-1 rounded break-all"
+                          <span className="font-mono cursor-pointer hover:bg-[#1a2332] px-2 py-1 rounded break-all"
                             onClick={() => copyToClipboard(input.txHashBuf)}>
                             {input.txHashBuf}
                           </span>
                           {showSizing && (
-                            <div className="text-gray-400 text-xs">{input.txHashBufLength} bytes</div>
+                            <div className="text-[#94a3b8] text-xs">{input.txHashBufLength} bytes</div>
                           )}
                         </div>
                       </div>
@@ -532,12 +532,12 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
                           <InfoTooltip text="Previous output index (4 bytes). Specifies which output from the previous transaction is being spent (0-based index)." />
                         </div>
                         <div className="flex flex-col items-end text-right">
-                          <span className="font-mono cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
+                          <span className="font-mono cursor-pointer hover:bg-[#1a2332] px-2 py-1 rounded"
                             onClick={() => copyToClipboard(input.txOutNum)}>
                             {input.txOutNum}
                           </span>
                           {showSizing && (
-                            <div className="text-gray-400 text-xs">{input.txOutNumLength} bytes</div>
+                            <div className="text-[#94a3b8] text-xs">{input.txOutNumLength} bytes</div>
                           )}
                         </div>
                       </div>
@@ -548,12 +548,12 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
                           <InfoTooltip text="Script length in VarInt format (1-9 bytes). Specifies the length of the unlocking script that follows." />
                         </div>
                         <div className="flex flex-col items-end text-right">
-                          <span className="font-mono cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
+                          <span className="font-mono cursor-pointer hover:bg-[#1a2332] px-2 py-1 rounded"
                             onClick={() => copyToClipboard(input.scriptVi)}>
                             {input.scriptVi}
                           </span>
                           {showSizing && (
-                            <div className="text-gray-400 text-xs">{input.scriptViLength} bytes</div>
+                            <div className="text-[#94a3b8] text-xs">{input.scriptViLength} bytes</div>
                           )}
                         </div>
                       </div>
@@ -564,12 +564,12 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
                           <InfoTooltip text="Unlocking script (variable length). Contains the scriptSig that proves ownership and provides conditions to unlock the previous output." />
                         </div>
                         <div className="flex flex-col items-end text-right">
-                          <span className="font-mono cursor-pointer hover:bg-gray-700 px-2 py-1 rounded break-all"
+                          <span className="font-mono cursor-pointer hover:bg-[#1a2332] px-2 py-1 rounded break-all"
                             onClick={() => copyToClipboard(scriptDisplayMode === 'hex' ? input.script : hexToASM(input.script))}>
                             {scriptDisplayMode === 'hex' ? input.script : hexToASM(input.script)}
                           </span>
                           {showSizing && (
-                            <div className="text-gray-400 text-xs">{input.scriptLength} bytes</div>
+                            <div className="text-[#94a3b8] text-xs">{input.scriptLength} bytes</div>
                           )}
                         </div>
                       </div>
@@ -580,12 +580,12 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
                           <InfoTooltip text="Sequence number (4 bytes). Used for payment channels and relative time locks. Input is final when nSequence = 0xFFFFFFFF." />
                         </div>
                         <div className="flex flex-col items-end text-right">
-                          <span className="font-mono cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
+                          <span className="font-mono cursor-pointer hover:bg-[#1a2332] px-2 py-1 rounded"
                             onClick={() => copyToClipboard(input.nSequence)}>
                             {input.nSequence}
                           </span>
                           {showSizing && (
-                            <div className="text-gray-400 text-xs">{input.nSequenceLength} bytes</div>
+                            <div className="text-[#94a3b8] text-xs">{input.nSequenceLength} bytes</div>
                           )}
                         </div>
                       </div>
@@ -602,35 +602,35 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
             </div>
 
             {/* Output Count */}
-            <div className="border-b border-gray-700 pb-4">
+            <div className="border-b border-[#1e3a5f] pb-4">
               <div className="flex justify-between items-start group">
                 <div className="flex items-center">
                   <span className="text-blue-400">txOutsVi:</span>
                   <InfoTooltip text="Transaction output counter in VarInt format (1-9 bytes). Specifies how many outputs follow. Uses variable-length encoding to efficiently store the count." />
                 </div>
                 <div className="flex flex-col items-end text-right">
-                  <span className="font-mono cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
+                  <span className="font-mono cursor-pointer hover:bg-[#1a2332] px-2 py-1 rounded"
                     onClick={() => copyToClipboard(parsedTx.txOutsVi)}>
                     {parsedTx.txOutsVi}
                   </span>
                   {showSizing && (
-                    <div className="text-gray-400 text-xs">{parsedTx.txOutsViLength} bytes</div>
+                    <div className="text-[#94a3b8] text-xs">{parsedTx.txOutsViLength} bytes</div>
                   )}
                 </div>
               </div>
             </div>
 
             {/* Outputs */}
-            <div className="border-b border-gray-700 pb-4">
-              <h3 className="text-lg font-bold mb-3 text-[#0a84ff]">Outputs</h3>
+            <div className="border-b border-[#1e3a5f] pb-4">
+              <h3 className="text-lg font-bold mb-3 text-[#3b82f6]">Outputs</h3>
               {parsedTx.outputs.map((output, index) => (
-                <div key={index} className="mb-4 p-4 bg-black rounded border-l-4 border-[#0a84ff]">
+                <div key={index} className="mb-4 p-4 bg-[#0a0e1a] rounded border-l-4 border-[#3b82f6]">
                   <button
                     onClick={() => toggleOutput(index)}
                     className="flex items-center justify-between w-full text-left mb-2"
                   >
-                    <h4 className="text-sm font-bold text-gray-300">Output {index + 1}</h4>
-                    <span className="text-gray-400 hover:text-white transition-colors">
+                    <h4 className="text-sm font-bold text-[#cbd5e1]">Output {index + 1}</h4>
+                    <span className="text-[#94a3b8] hover:text-white transition-colors">
                       {expandedOutputs.has(index) ? '▼' : '▶'}
                     </span>
                   </button>
@@ -643,18 +643,18 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
                           <InfoTooltip text="Output value (8 bytes). The number of satoshis to be transferred to this output, stored as little-endian integer." />
                         </div>
                         <div className="flex flex-col items-end text-right">
-                          <span className="font-mono cursor-pointer hover:bg-gray-700 px-2 py-1 rounded text-green-400"
+                          <span className="font-mono cursor-pointer hover:bg-[#1a2332] px-2 py-1 rounded text-green-400"
                             onClick={() => copyToClipboard(hexToDecimal(output.valueBn))}>
                             {hexToDecimal(output.valueBn)} satoshis
                           </span>
-                          <span className="font-mono cursor-pointer hover:bg-gray-700 px-2 py-1 rounded text-gray-400 text-xs"
+                          <span className="font-mono cursor-pointer hover:bg-[#1a2332] px-2 py-1 rounded text-[#94a3b8] text-xs"
                             onClick={() => copyToClipboard(output.valueBn)}>
                             (0x{output.valueBn})
                           </span>
                         </div>
                       </div>
                       {showSizing && (
-                        <div className="text-gray-400 text-xs">{output.valueBnLength} bytes</div>
+                        <div className="text-[#94a3b8] text-xs">{output.valueBnLength} bytes</div>
                       )}
 
                       <div className="flex justify-between items-start">
@@ -663,12 +663,12 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
                           <InfoTooltip text="Script length in VarInt format (1-9 bytes). Specifies the length of the locking script that follows." />
                         </div>
                         <div className="flex flex-col items-end text-right">
-                          <span className="font-mono cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
+                          <span className="font-mono cursor-pointer hover:bg-[#1a2332] px-2 py-1 rounded"
                             onClick={() => copyToClipboard(output.scriptVi)}>
                             {output.scriptVi}
                           </span>
                           {showSizing && (
-                            <div className="text-gray-400 text-xs">{output.scriptViLength} bytes</div>
+                            <div className="text-[#94a3b8] text-xs">{output.scriptViLength} bytes</div>
                           )}
                         </div>
                       </div>
@@ -679,12 +679,12 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
                           <InfoTooltip text="Locking script (variable length). Contains the scriptPubKey that sets conditions to release the bitcoin amount in this output." />
                         </div>
                         <div className="flex flex-col items-end text-right">
-                          <span className="font-mono cursor-pointer hover:bg-gray-700 px-2 py-1 rounded break-all"
+                          <span className="font-mono cursor-pointer hover:bg-[#1a2332] px-2 py-1 rounded break-all"
                             onClick={() => copyToClipboard(scriptDisplayMode === 'hex' ? output.script : hexToASM(output.script))}>
                             {scriptDisplayMode === 'hex' ? output.script : hexToASM(output.script)}
                           </span>
                           {showSizing && (
-                            <div className="text-gray-400 text-xs">{output.scriptLength} bytes</div>
+                            <div className="text-[#94a3b8] text-xs">{output.scriptLength} bytes</div>
                           )}
                         </div>
                       </div>
@@ -695,12 +695,12 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
                           <InfoTooltip text="SHA-256 hash of the locking script. Used to create script addresses and for script identification purposes." />
                         </div>
                         <div className="flex flex-col items-end text-right">
-                          <span className="font-mono cursor-pointer hover:bg-gray-700 px-2 py-1 rounded break-all"
+                          <span className="font-mono cursor-pointer hover:bg-[#1a2332] px-2 py-1 rounded break-all"
                             onClick={() => copyToClipboard(output.tokenScriptHash)}>
                             {output.tokenScriptHash}
                           </span>
                           {showSizing && (
-                            <div className="text-gray-400 text-xs">{output.tokenScriptHashLength} bytes</div>
+                            <div className="text-[#94a3b8] text-xs">{output.tokenScriptHashLength} bytes</div>
                           )}
                         </div>
                       </div>
@@ -724,12 +724,12 @@ export default function BitcoinTransactionParser({ network = 'main' }: BitcoinTr
                   <InfoTooltip text="Lock time (4 bytes). Block height or timestamp when transaction becomes final. If non-zero and sequence numbers < 0xFFFFFFFF, transaction is locked until this time." />
                 </div>
                 <div className="flex flex-col items-end text-right">
-                  <span className="font-mono cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
+                  <span className="font-mono cursor-pointer hover:bg-[#1a2332] px-2 py-1 rounded"
                     onClick={() => copyToClipboard(parsedTx.nLockTime)}>
                     {parsedTx.nLockTime}
                   </span>
                   {showSizing && (
-                    <div className="text-gray-400 text-xs">{parsedTx.nLockTimeLength} bytes</div>
+                    <div className="text-[#94a3b8] text-xs">{parsedTx.nLockTimeLength} bytes</div>
                   )}
                 </div>
               </div>

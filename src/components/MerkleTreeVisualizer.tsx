@@ -517,10 +517,10 @@ export default function MerkleTreeVisualizer({
 
     // Determine node color based on type
     const getNodeColor = () => {
-      if (isSelected) return "#a855f7"; // Purple for selected
-      if (isInPath) return "#0a84ff"; // Blue for path
-      if (isRoot) return "#a855f7"; // Purple for root
-      if (node.isLeaf) return "#0a84ff"; // Blue for leaves
+      if (isSelected) return "#60a5fa"; // Purple for selected
+      if (isInPath) return "#3b82f6"; // Blue for path
+      if (isRoot) return "#60a5fa"; // Purple for root
+      if (node.isLeaf) return "#3b82f6"; // Blue for leaves
       return "#374151"; // Gray for internal nodes
     };
 
@@ -671,10 +671,10 @@ export default function MerkleTreeVisualizer({
 
     return (
       <div
-        className="overflow-auto border border-gray-700 rounded-lg bg-black"
+        className="overflow-auto border border-[#1e3a5f] rounded-lg bg-[#0a0e1a]"
         style={{ maxHeight: "80vh", minHeight: "auto" }}
       >
-        <svg width={svgWidth} height={svgHeight} className="bg-black block">
+        <svg width={svgWidth} height={svgHeight} className="bg-[#0a0e1a] block">
           {/* Invisible markers for smooth navigation */}
           {(() => {
             // Calculate actual root node position using same logic as node rendering
@@ -742,7 +742,7 @@ export default function MerkleTreeVisualizer({
                             step.hash === node.hash ||
                             step.hash === node.left?.hash
                         )
-                          ? "#0a84ff"
+                          ? "#3b82f6"
                           : "#6b7280"
                       }
                       strokeWidth={
@@ -785,7 +785,7 @@ export default function MerkleTreeVisualizer({
                             step.hash === node.hash ||
                             step.hash === node.right?.hash
                         )
-                          ? "#0a84ff"
+                          ? "#3b82f6"
                           : "#6b7280"
                       }
                       strokeWidth={
@@ -826,7 +826,7 @@ export default function MerkleTreeVisualizer({
     <div className="space-y-6">
       <div className="text-center">
         <h1 className="text-4xl sm:text-4xl font-bold mb-4">
-          <span className="bg-gradient-to-r from-[#0a84ff] to-[#a855f7] bg-clip-text text-transparent">
+          <span className="text-[#3b82f6]">
             Merkle Tree Visualizer
           </span>
         </h1>
@@ -836,21 +836,21 @@ export default function MerkleTreeVisualizer({
         </p>
       </div>
 
-      <div className="bg-[#0f172a] rounded-lg p-6">
-        <div className="flex border-b border-gray-700 mb-6">
+      <div className="bg-[#111827] rounded-lg p-6">
+        <div className="flex border-b border-[#1e3a5f] mb-6">
           <button
             onClick={() => setActiveTab("visualization")}
             className={`px-4 py-2 ${
               activeTab === "visualization"
                 ? "border-b-2 border-blue-500 text-blue-500"
-                : "text-gray-400"
+                : "text-[#94a3b8]"
             }`}
           >
             Tree Visualization
           </button>
           {/* <button
             onClick={() => setActiveTab('merklepath')}
-            className={`px-4 py-2 ${activeTab === 'merklepath' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-400'}`}
+            className={`px-4 py-2 ${activeTab === 'merklepath' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-[#94a3b8]'}`}
             disabled={merklePath.length === 0}
           >
             Merkle Path
@@ -860,7 +860,7 @@ export default function MerkleTreeVisualizer({
             className={`px-4 py-2 ${
               activeTab === "calculation"
                 ? "border-b-2 border-blue-500 text-blue-500"
-                : "text-gray-400"
+                : "text-[#94a3b8]"
             }`}
             disabled={proofSteps.length === 0}
           >
@@ -869,7 +869,7 @@ export default function MerkleTreeVisualizer({
         </div>
 
         {/* Load Block Data Section - Always Visible */}
-        <div className="mb-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
+        <div className="mb-6 p-4 bg-[#1a2332] rounded-lg border border-[#1e3a5f]">
           {/* <h3 className="text-lg font-semibold text-white mb-4">
             Load Block Data
           </h3> */}
@@ -883,7 +883,7 @@ export default function MerkleTreeVisualizer({
                 value={blockInput}
                 onChange={(e) => setBlockInput(e.target.value)}
                 placeholder="Enter block height (e.g., 575191) or block hash"
-                className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white"
+                className="w-full p-3 bg-[#1a2332] border border-gray-600 rounded-lg text-white"
               />
             </div>
 
@@ -904,7 +904,7 @@ export default function MerkleTreeVisualizer({
               Load Block Transactions
             </button>
 
-            <div className="text-sm text-gray-400 space-y-2">
+            <div className="text-sm text-[#94a3b8] space-y-2">
               <p>
                 This will fetch all transaction IDs from the specified block and
                 create a Merkle tree visualization. You can enter either a block
@@ -964,7 +964,7 @@ export default function MerkleTreeVisualizer({
               <div className="overflow-auto">
                 {tree && (
                   <div
-                    className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700"
+                    className="mb-4 p-4 bg-[#1a2332] rounded-lg border border-[#1e3a5f]"
                     data-merkle-root
                   >
                     <div className="flex items-center justify-between mb-3">
@@ -979,7 +979,7 @@ export default function MerkleTreeVisualizer({
                               className={`px-3 py-1 text-xs rounded transition-colors ${
                                 showPathOnly
                                   ? "bg-blue-600 hover:bg-blue-700 text-white"
-                                  : "bg-gray-700 hover:bg-gray-600 text-white"
+                                  : "bg-[#1a2332] hover:bg-[#243447] text-white"
                               }`}
                               title={
                                 showPathOnly
@@ -997,7 +997,7 @@ export default function MerkleTreeVisualizer({
                                 setPathNodes(new Set());
                                 setProofSteps([]);
                               }}
-                              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                              className="px-3 py-1 bg-[#1a2332] hover:bg-[#243447] text-white text-xs rounded transition-colors"
                               title="Reset selection"
                             >
                               🔄 Reset
@@ -1006,7 +1006,7 @@ export default function MerkleTreeVisualizer({
                         )}
                         <button
                           onClick={() => copyToClipboard(tree.hash)}
-                          className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                          className="px-3 py-1 bg-[#1a2332] hover:bg-[#243447] text-white text-xs rounded transition-colors"
                           title="Copy root hash to clipboard"
                         >
                           📋 Copy Root
@@ -1026,7 +1026,7 @@ export default function MerkleTreeVisualizer({
                     )}
                   </div>
                 )}
-                <p className="text-gray-300 mb-4">
+                <p className="text-[#cbd5e1] mb-4">
                   Click on any leaf node (bottom row) to see its Merkle path
                   proof and access the Hash Calculation tab.
                 </p>
@@ -1034,7 +1034,7 @@ export default function MerkleTreeVisualizer({
 
                 {/* Integrated Merkle Path Display */}
                 {merklePath.length > 0 && (
-                  <div className="mt-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
+                  <div className="mt-6 p-4 bg-[#1a2332] rounded-lg border border-[#1e3a5f]">
                     <h3 className="text-lg font-semibold text-white mb-4">
                       🛤️ Merkle Path{" "}
                       {selectedLeaf &&
@@ -1062,7 +1062,7 @@ export default function MerkleTreeVisualizer({
                           </div>
                           <button
                             onClick={() => copyToClipboard(step.hash)}
-                            className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-colors"
+                            className="px-2 py-1 bg-[#1a2332] hover:bg-[#243447] text-white text-xs rounded transition-colors"
                             title="Copy hash"
                           >
                             📋
@@ -1074,11 +1074,11 @@ export default function MerkleTreeVisualizer({
                 )}
               </div>
             ) : (
-              <div className="p-8 bg-gray-800 rounded-lg text-center">
+              <div className="p-8 bg-[#1a2332] rounded-lg text-center">
                 <h3 className="text-xl font-semibold text-white mb-2">
                   No Merkle Tree Data
                 </h3>
-                <p className="text-gray-400">
+                <p className="text-[#94a3b8]">
                   Load block data from WhatsOnChain above to create a Merkle
                   tree visualization.
                 </p>
@@ -1098,7 +1098,7 @@ export default function MerkleTreeVisualizer({
                   {calculatingSteps ? (
                     <div className="flex items-center justify-center p-8">
                       <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-3" />
-                      <span className="text-gray-300">
+                      <span className="text-[#cbd5e1]">
                         Calculating hash steps...
                       </span>
                     </div>
@@ -1106,7 +1106,7 @@ export default function MerkleTreeVisualizer({
                     proofSteps.map((step, index) => (
                       <div
                         key={index}
-                        className="p-4 bg-gray-800 rounded-lg border border-gray-700"
+                        className="p-4 bg-[#1a2332] rounded-lg border border-[#1e3a5f]"
                       >
                         <div className="flex items-center justify-between mb-3">
                           <span className="text-green-400 font-medium">
@@ -1144,7 +1144,7 @@ export default function MerkleTreeVisualizer({
                           </div>
                         ) : (
                           <div className="text-xs">
-                            <span className="text-gray-400">Start: </span>
+                            <span className="text-[#94a3b8]">Start: </span>
                             <span className="font-mono text-green-400 break-all">
                               {step.result}
                             </span>
@@ -1187,11 +1187,11 @@ export default function MerkleTreeVisualizer({
                 </div>
               </div>
             ) : (
-              <div className="p-8 bg-gray-800 rounded-lg text-center">
+              <div className="p-8 bg-[#1a2332] rounded-lg text-center">
                 <h3 className="text-xl font-semibold text-white mb-2">
                   No Hash Calculation Available
                 </h3>
-                <p className="text-gray-400">
+                <p className="text-[#94a3b8]">
                   Click on a leaf node in the Tree Visualization tab to generate
                   hash calculation steps.
                 </p>

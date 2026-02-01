@@ -8,14 +8,14 @@ interface NetworkToggleProps {
 export default function NetworkToggle({ network, onNetworkChange }: NetworkToggleProps) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-gray-400">Network:</span>
-      <div className="relative inline-flex bg-gray-800 rounded-full p-1">
+      <span className="text-sm text-[#94a3b8]">Network:</span>
+      <div className="relative inline-flex bg-[#1a2332] rounded-full p-1">
         <button
           onClick={() => onNetworkChange('main')}
           className={`px-3 py-1 text-xs font-medium rounded-full transition-all duration-200 ${
             network === 'main'
-              ? 'bg-[#0a84ff] text-white shadow-sm'
-              : 'text-gray-400 hover:text-white'
+              ? 'bg-[#3b82f6] text-white shadow-sm'
+              : 'text-[#94a3b8] hover:text-white'
           }`}
         >
           Main
@@ -24,8 +24,8 @@ export default function NetworkToggle({ network, onNetworkChange }: NetworkToggl
           onClick={() => onNetworkChange('test')}
           className={`px-3 py-1 text-xs font-medium rounded-full transition-all duration-200 ${
             network === 'test'
-              ? 'bg-[#0a84ff] text-white shadow-sm'
-              : 'text-gray-400 hover:text-white'
+              ? 'bg-[#3b82f6] text-white shadow-sm'
+              : 'text-[#94a3b8] hover:text-white'
           }`}
         >
           Test

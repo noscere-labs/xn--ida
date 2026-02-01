@@ -312,12 +312,12 @@ export default function BEEFParser({ network }: BEEFParserProps) {
     return (
       <div className="group">
         <div className="flex items-center justify-between mb-1">
-          {label && <span className="text-xs font-medium text-gray-400">{label}:</span>}
+          {label && <span className="text-xs font-medium text-[#94a3b8]">{label}:</span>}
           <div className="flex items-center gap-2">
             {showToggle && (
               <button
                 onClick={() => setDisplayFormat(displayFormat === 'hex' ? 'array' : 'hex')}
-                className="px-2 py-1 bg-[#0a84ff] hover:bg-[#3ea6ff] text-white text-xs rounded transition-all"
+                className="px-2 py-1 bg-[#3b82f6] hover:bg-[#2563eb] text-white text-xs rounded transition-all"
                 title={`Switch to ${displayFormat === 'hex' ? 'number array' : 'hex'} format`}
               >
                 {displayFormat === 'hex' ? '[]' : 'hex'}
@@ -325,7 +325,7 @@ export default function BEEFParser({ network }: BEEFParserProps) {
             )}
             <button
               onClick={() => copyToClipboard(displayText)}
-              className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-all"
+              className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-[#1a2332] hover:bg-[#243447] text-white text-xs rounded transition-all"
               title="Copy to clipboard"
             >
               📋 Copy
@@ -351,7 +351,7 @@ export default function BEEFParser({ network }: BEEFParserProps) {
     <div className="space-y-6">
       <div className="text-center">
         <h1 className="text-4xl sm:text-4xl font-bold mb-4">
-          <span className="bg-gradient-to-r from-[#0a84ff] to-[#a855f7] bg-clip-text text-transparent">
+          <span className="text-[#3b82f6]">
             BEEF Parser
           </span>
         </h1>
@@ -360,19 +360,19 @@ export default function BEEFParser({ network }: BEEFParserProps) {
         </p>
       </div>
 
-      <div className="bg-[#0f172a] rounded-lg overflow-hidden mb-6 transition-all duration-500 ease-in-out">
+      <div className="bg-[#111827] rounded-lg overflow-hidden mb-6 transition-all duration-500 ease-in-out">
         {/* Collapse/Expand Header */}
         {parsedBEEF && (
-          <div className="flex items-center justify-between p-4 bg-gray-800/50 border-b border-gray-700">
+          <div className="flex items-center justify-between p-4 bg-[#1a2332]/50 border-b border-[#1e3a5f]">
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-white">BEEF Parser</span>
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-[#94a3b8]">
                 {isParserCollapsed ? 'Collapsed' : 'Expanded'}
               </span>
             </div>
             <button
               onClick={toggleParserCollapse}
-              className="flex items-center gap-2 px-3 py-1 text-sm text-[#0a84ff] hover:text-[#3ea6ff] transition-colors"
+              className="flex items-center gap-2 px-3 py-1 text-sm text-[#3b82f6] hover:text-[#2563eb] transition-colors"
             >
               {isParserCollapsed ? 'Expand' : 'Collapse'}
               <span className={`transform transition-transform duration-300 ${isParserCollapsed ? 'rotate-180' : 'rotate-0'}`}>
@@ -400,13 +400,13 @@ export default function BEEFParser({ network }: BEEFParserProps) {
                 value={beefData}
                 onChange={(e) => setBeefData(e.target.value)}
                 placeholder="Paste your BEEF transaction data here (hex string or number array like [1,2,3,4,...])"
-                className="w-full h-32 p-3 bg-gray-800 border border-gray-700 rounded-lg font-mono text-sm text-white placeholder-gray-400 focus:ring-2 focus:ring-[#0a84ff] focus:border-transparent resize-none transition-all duration-200"
+                className="w-full h-32 p-3 bg-[#1a2332] border border-[#1e3a5f] rounded-lg font-mono text-sm text-white placeholder-gray-400 focus:ring-2 focus:ring-[#3b82f6] focus:border-transparent resize-none transition-all duration-200"
               />
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={handleParseBEEF}
                   disabled={!beefData.trim()}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#0a84ff] text-white rounded-lg hover:bg-[#3ea6ff] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#3b82f6] text-white rounded-lg hover:bg-[#2563eb] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
                 >
                   Parse BEEF
                 </button>
@@ -441,8 +441,8 @@ export default function BEEFParser({ network }: BEEFParserProps) {
       </div>
 
       {parsedBEEF && (
-        <div className="bg-[#0f172a] rounded-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="border-b border-gray-800">
+        <div className="bg-[#111827] rounded-lg overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="border-b border-[#1e3a5f]">
             <nav className="flex">
               {[
                 { id: 'overview', label: 'Overview' },
@@ -453,8 +453,8 @@ export default function BEEFParser({ network }: BEEFParserProps) {
                   key={id}
                   onClick={() => setActiveTab(id as typeof activeTab)}
                   className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${activeTab === id
-                    ? 'border-b-2 border-[#0a84ff] text-[#0a84ff] bg-[#0a84ff]/10'
-                    : 'text-[#d1d5db] hover:text-white hover:bg-gray-800/50'
+                    ? 'border-b-2 border-[#3b82f6] text-[#3b82f6] bg-[#3b82f6]/10'
+                    : 'text-[#d1d5db] hover:text-white hover:bg-[#1a2332]/50'
                     }`}
                 >
                   {label}
@@ -467,7 +467,7 @@ export default function BEEFParser({ network }: BEEFParserProps) {
             {activeTab === 'overview' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-[#0a84ff]/10 border border-[#0a84ff]/20 p-4 rounded-lg">
+                  <div className="bg-[#3b82f6]/10 border border-[#3b82f6]/20 p-4 rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
                       <div className={`w-3 h-3 rounded-full ${parsedBEEF.isValidVersion ? 'bg-green-500' : 'bg-red-500'}`} />
                       <span className="font-medium">Version</span>
@@ -510,9 +510,9 @@ export default function BEEFParser({ network }: BEEFParserProps) {
                   </button>
                 </div>
 
-                <div className="bg-gray-800/50 p-4 rounded-lg">
+                <div className="bg-[#1a2332]/50 p-4 rounded-lg">
                   <HashDisplay hash={parsedBEEF.raw} label="Raw BEEF Data" showToggle={true} />
-                  <div className="text-sm text-gray-400 mt-2">
+                  <div className="text-sm text-[#94a3b8] mt-2">
                     Total size: {parsedBEEF.totalSize.toLocaleString()} bytes • Format: {displayFormat === 'hex' ? 'Hexadecimal' : 'Number Array'}
                   </div>
                 </div>
@@ -522,20 +522,20 @@ export default function BEEFParser({ network }: BEEFParserProps) {
             {activeTab === 'bumps' && (
               <div className="space-y-4">
                 {parsedBEEF.bumps.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400">
+                  <div className="text-center py-8 text-[#94a3b8]">
                     No BUMP data found in this BEEF transaction.
                   </div>
                 ) : (
                   parsedBEEF.bumps.map((bump, index) => (
-                    <div key={index} className="border border-gray-700 rounded-lg overflow-hidden">
+                    <div key={index} className="border border-[#1e3a5f] rounded-lg overflow-hidden">
                       <button
                         onClick={() => toggleSection(`bump-${index}`)}
-                        className="w-full flex items-center justify-between p-4 bg-gray-800/50 hover:bg-gray-700/50 transition-colors"
+                        className="w-full flex items-center justify-between p-4 bg-[#1a2332]/50 hover:bg-[#1a2332]/50 transition-colors"
                       >
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-2">
                             {bump.validation?.isValidating ? (
-                              <div className="w-4 h-4 border-2 border-[#0a84ff] border-t-transparent rounded-full animate-spin" />
+                              <div className="w-4 h-4 border-2 border-[#3b82f6] border-t-transparent rounded-full animate-spin" />
                             ) : bump.validation?.isValid === true ? (
                               <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
                                 <span className="text-white text-xs">✓</span>
@@ -566,7 +566,7 @@ export default function BEEFParser({ network }: BEEFParserProps) {
                                 validateBump(index);
                               }}
                               disabled={validatingBumps.has(index)}
-                              className="px-3 py-1 bg-[#0a84ff] text-white text-sm rounded hover:bg-[#3ea6ff] disabled:opacity-50 transition-colors"
+                              className="px-3 py-1 bg-[#3b82f6] text-white text-sm rounded hover:bg-[#2563eb] disabled:opacity-50 transition-colors"
                             >
                               Validate
                             </button>
@@ -583,7 +583,7 @@ export default function BEEFParser({ network }: BEEFParserProps) {
                               Reset
                             </button>
                           )}
-                          <div className="text-[#0a84ff]">
+                          <div className="text-[#3b82f6]">
                             {expandedSections.has(`bump-${index}`) ? '▼' : '▶'}
                           </div>
                         </div>
@@ -616,8 +616,8 @@ export default function BEEFParser({ network }: BEEFParserProps) {
                               </div>
 
                               {bump.validation.isValidating ? (
-                                <div className="flex items-center gap-2 text-sm text-[#0a84ff]">
-                                  <div className="w-4 h-4 border-2 border-[#0a84ff] border-t-transparent rounded-full animate-spin" />
+                                <div className="flex items-center gap-2 text-sm text-[#3b82f6]">
+                                  <div className="w-4 h-4 border-2 border-[#3b82f6] border-t-transparent rounded-full animate-spin" />
                                   Validating against {network} network...
                                 </div>
                               ) : (
@@ -671,10 +671,10 @@ export default function BEEFParser({ network }: BEEFParserProps) {
                                     {level.map((leaf, leafIndex) => (
                                       <div key={leafIndex} className="border border-gray-600 rounded p-3 space-y-2">
                                         <div className="flex items-center gap-2">
-                                          <span className="text-gray-400 text-xs font-medium">Offset #{leaf.offset}</span>
-                                          <span className={`px-2 py-1 rounded text-xs font-medium ${leaf.isClientTxid ? 'bg-[#0a84ff]/20 text-[#0a84ff]' :
+                                          <span className="text-[#94a3b8] text-xs font-medium">Offset #{leaf.offset}</span>
+                                          <span className={`px-2 py-1 rounded text-xs font-medium ${leaf.isClientTxid ? 'bg-[#3b82f6]/20 text-[#3b82f6]' :
                                             leaf.isDuplicate ? 'bg-yellow-500/20 text-yellow-400' :
-                                              'bg-gray-700 text-gray-300'
+                                              'bg-[#1a2332] text-[#cbd5e1]'
                                             }`}>
                                             {leaf.isClientTxid ? 'Client TXID' :
                                               leaf.isDuplicate ? 'Duplicate' : 'Sibling'}
@@ -701,10 +701,10 @@ export default function BEEFParser({ network }: BEEFParserProps) {
             {activeTab === 'transactions' && (
               <div className="space-y-4">
                 {parsedBEEF.transactions.map((tx, index) => (
-                  <div key={index} className="border border-gray-700 rounded-lg overflow-hidden">
+                  <div key={index} className="border border-[#1e3a5f] rounded-lg overflow-hidden">
                     <button
                       onClick={() => toggleSection(`tx-${index}`)}
-                      className="w-full flex items-center justify-between p-4 bg-gray-800/50 hover:bg-gray-700/50 transition-colors"
+                      className="w-full flex items-center justify-between p-4 bg-[#1a2332]/50 hover:bg-[#1a2332]/50 transition-colors"
                     >
                       <div className="flex items-center gap-2">
                         <span className="font-medium">Transaction {index + 1}</span>
@@ -712,7 +712,7 @@ export default function BEEFParser({ network }: BEEFParserProps) {
                           href={`https://${network === 'test' ? 'test.' : ''}whatsonchain.com/tx/${tx.txid}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-[#0a84ff] hover:text-[#3ea6ff] font-mono hover:underline transition-colors"
+                          className="text-sm text-[#3b82f6] hover:text-[#2563eb] font-mono hover:underline transition-colors"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {tx.txid}
@@ -722,7 +722,7 @@ export default function BEEFParser({ network }: BEEFParserProps) {
                             ? 'bg-green-500/20 text-green-400'
                             : parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === false
                               ? 'bg-red-500/20 text-red-400'
-                              : 'bg-gray-500/20 text-gray-400'
+                              : 'bg-gray-500/20 text-[#94a3b8]'
                             }`}>
                             {parsedBEEF.bumps[tx.bumpIndex!]?.validation?.isValid === true
                               ? '✓ Validated Proof'
@@ -733,7 +733,7 @@ export default function BEEFParser({ network }: BEEFParserProps) {
                           </span>
                         )}
                       </div>
-                      <div className="text-[#0a84ff]">
+                      <div className="text-[#3b82f6]">
                         {expandedSections.has(`tx-${index}`) ? '▼' : '▶'}
                       </div>
                     </button>
@@ -744,20 +744,20 @@ export default function BEEFParser({ network }: BEEFParserProps) {
                           <div>
                             <div className="group">
                               <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs font-medium text-gray-400">Transaction ID:</span>
+                                <span className="text-xs font-medium text-[#94a3b8]">Transaction ID:</span>
                                 <div className="flex items-center gap-2">
                                   <a
                                     href={`https://${network === 'test' ? 'test.' : ''}whatsonchain.com/tx/${tx.txid}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="px-2 py-1 bg-[#0a84ff] hover:bg-[#3ea6ff] text-white text-xs rounded transition-all"
+                                    className="px-2 py-1 bg-[#3b82f6] hover:bg-[#2563eb] text-white text-xs rounded transition-all"
                                     title="View on WhatsOnChain"
                                   >
                                     🔗 View
                                   </a>
                                   <button
                                     onClick={() => copyToClipboard(tx.txid)}
-                                    className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded transition-all"
+                                    className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-[#1a2332] hover:bg-[#243447] text-white text-xs rounded transition-all"
                                     title="Copy to clipboard"
                                   >
                                     📋 Copy
