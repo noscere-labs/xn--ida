@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import MerkleTreeVisualizer from "../components/MerkleTreeVisualizer";
 import TxParser from "../components/TxParser";
 import TxWalker from "../components/TxWalker";
+import TxGraph from "../components/TxGraph";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
 import { Network } from "../services/whatsonchain";
@@ -44,6 +45,12 @@ const tools: Tool[] = [
       "Navigate through transaction graphs by exploring inputs and outputs",
     icon: "🚶‍♂️",
   },
+  {
+    id: "tx-graph",
+    name: "Transaction Graph",
+    description: "Recursively trace transaction spending patterns to UTXOs",
+    icon: "🕸️",
+  },
 ];
 
 // Tool metadata configuration for dynamic Open Graph updates
@@ -71,6 +78,12 @@ const toolMetadata = {
     description: "Navigate through Bitcoin SV transaction graphs by exploring inputs and outputs. Trace transaction flows and analyze blockchain connections.",
     ogTitle: "Transaction Walker - Bitcoin SV Graph Explorer",
     ogDescription: "Navigate through Bitcoin SV transaction graphs and trace blockchain connections with interactive exploration tools.",
+  },
+  "tx-graph": {
+    title: "Transaction Graph - BSV Spending Tracer | Noscere Labs",
+    description: "Recursively trace Bitcoin SV transaction spending patterns from a starting TXID to terminal UTXOs and fee-consumed outputs.",
+    ogTitle: "Transaction Graph - BSV Spending Tracer",
+    ogDescription: "Trace Bitcoin SV transaction flows with recursive graph visualization.",
   },
 };
 
@@ -251,6 +264,32 @@ export default function Home() {
 
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
           <TxWalker network={network} />
+        </main>
+
+        <Footer />
+      </div>
+    );
+  }
+
+  if (selectedTool === "tx-graph") {
+    return (
+      <div className="min-h-screen bg-black text-white font-sans flex flex-col">
+        <Header
+          breadcrumbs={[
+            {
+              label: "Tools",
+              href: "#",
+              onClick: handleBackToHome,
+            },
+            { label: "Transaction Graph" },
+          ]}
+          showNetworkToggle={true}
+          network={network}
+          onNetworkChange={handleNetworkChange}
+        />
+
+        <main className="flex-1 w-full">
+          <TxGraph network={network} />
         </main>
 
         <Footer />
